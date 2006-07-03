@@ -1,0 +1,77 @@
+データベース設計
+
+■ テーブル
+
+* パッケージ管理テーブル
+
+  配布パッケージの個別 (メタ) 情報を保持する
+
+     pkgid: integer auto_increment
+     パッケージ名: XOOPS2		パッケージを示すキーワード
+     バージョン番号: 2.0.15-JP		パッケージの世代を意味する
+     表示名: XOOPS 2.0.15-JP		配布ファイルセットを示す表示名称
+     配布日時: 2006/06/18 19:29:33 +0900	配布ファイルのタイムスタンプ
+     情報日時: 2006/06/18 19:29:33 +0900	マニフェストのタイムスタンプ
+     更新日時: 2006/06/18 19:29:33 +0900	ローカルのタイムスタンプ
+     導出元ID				導出元となる pkgid
+
+  ※ 特殊なバージョン番号 (cvs にならって HEAD) は、現在のサイト
+     に導入されている版に関する情報を保持する。
+
+
+* ファイル管理テーブル
+
+  個別ファイルの情報を保持する
+
+     pkgid
+     ハッシュ値
+     パス名 
+
+■ 現行パッケージ (HEAD)
+
+配布パッケージからの変更状況を元に生成
+
+   * pversion を 'HEAD' とする。
+   * 親パッケージとの違いを、差分 (更新ファイル, 削除ファイル) でマーク
+     変更分を update_files に、登録する
+       pkgref を現行 pkgid とした
+          変更 hash 値
+	  削除 hash 'delete'
+
+■ データ交換フォーマット
+
+マニフェスト: オフラインでパッケージ情報を一括交換する書式
+
+※ update モジュールに、アップロードして利用が可能
+
+Manifest ::-  Header + Blank-line + Body
+Header ::- [Filed-name + /:\s*/ + value + CRLF [Header...]]
+Blank-line ::- /^$/
+Body ::- Hash-value + /\s+/ + File-path
+Hash-value ::- {sha1-value|md5-value}
+File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
+
+例:
+    From: ScriptUpdate <info@scriptupdate.jp>
+    Date: Sat, 24 Jun 2006 12:02:49 +0900
+    Subject: ScriptUpdate Manifest for XOOPS2
+    X-Dist-Date: Sat, 18 Jun 2006 02:00:14 +0900
+    X-Info-Date: Sat, 22 Jun 2006 14:00:00 +0900
+    X-Package-Name: XOOPS2
+    X-Package-Version: 2.0.14-JP
+    X-Name: XOOPS 2.0.14-JP
+    X-Hash-method: sha1
+
+    4b715bd6c9c93477775c24336ca2d3ec5248e7d8  admin.php
+    590e194376e757e69b7636f727ee2941f031519f  backend.php
+    fb7c8927bf42fbf590d8fdc15ca5ecb4583cc4ca  banners.php
+    806263b42a1bb9520744eac924362d43e1ab97b4  cache/index.html
+    0986480f4a5e265fe773d111bc84b12308058c38  class/class.tar.php
+    1cb84afa96c0bf659ab7b76d54605aef6ddd2000  class/class.zipfile.php
+              :
+
+生成スクリプト /server/manifesto.php が作成済み。
+
+■ 名称変更への対応
+
+モジュールの名前変更にどう対応するか。
