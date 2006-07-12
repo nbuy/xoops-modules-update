@@ -1,10 +1,10 @@
 <?php
 # checking XOOPS installed files
-# $Id: xoops_version.php,v 1.1 2006/07/03 03:36:16 nobu Exp $
+# $Id: xoops_version.php,v 1.2 2006/07/12 18:33:55 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.1,
+	    'version' => 0.3,
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 ScriptUpdate LLC.",

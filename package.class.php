@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.1 2006/07/03 03:36:16 nobu Exp $
+# $Id: package.class.php,v 1.2 2006/07/12 18:33:55 nobu Exp $
 
 // Package class
 // methods:
@@ -17,6 +17,29 @@ function is_binary($file) {
     return preg_match('/\.(png|gif|jpe?g|swf|zip|gz|tar)$/i', $file);
     //$type = preg_replace('/^[^:]*:\s*/', '', `file $file`);
     //return preg_match('/(image)/', $file);
+}
+
+if(!function_exists("file_get_contents")) {
+   function file_get_contents($filename) {
+       $fp = fopen($filename, "rb");
+       if (!$fp) return false;
+       $contents = "";
+       while (! feof($fp)) {
+	   $contents .= fread($fp, 4096);
+       }
+       return $contents;
+   }
+}
+
+if (!function_exists('file_put_contents')) {
+    // have php 4.4 later
+    function file_put_contents($file, $text) {
+	$fp = fopen($file, "w");
+	if (!$fp) return false;
+	$ret = fwrite($fp, $text);
+	fclose($fp);
+	return $ret;
+    }
 }
 
 $meta_fileds = array(
@@ -172,6 +195,25 @@ class Package {
 	return true;
     }
 
+    function getFile($path, $ver=null) {
+	global $xoopsModuleConfig;
+	if (empty($ver)) $ver = $this->getVar('pversion');
+	$pname = $this->getVar('pname');
+	$file = XOOPS_ROOT_PATH."/uploads/update/source/$pname/$ver/".$path;
+	if (file_exists($file)) {
+	    return file_get_contents($file);
+	} else {
+	    require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
+	    $url = $xoopsModuleConfig['update_server'].
+		"file.php?pkg=".urlencode($pname).
+		"&v=".urlencode($ver)."&file=".urlencode($path);
+	    $snoopy = new Snoopy;
+	    $snoopy->lastredirectaddr = 1;
+	    if ($snoopy->fetch($url)) return $snoopy->results;
+	    else echo "<div>Error: $url</div>";
+	}
+	return null;
+    }
 }
 
 class InstallPackage extends Package {
@@ -233,7 +275,11 @@ class InstallPackage extends Package {
 	if ($this->getHash($path) != $md5) {
 	    $hash = $xoopsDB->quoteString($md5);
 	    $key = $xoopsDB->quoteString($path);
-	    if ($md5 != 'delete') $diff = $xoopsDB->quoteString($this->getDiff($path));
+	    if ($md5 != 'delete') {
+		$diff = $this->getDiff($path);
+		if ($diff === null) return false; // error!
+		$diff = $xoopsDB->quoteString($diff);
+	    }
 	    $now = time();
 	    if (isset($this->modifies[$path])) {
 		$res = $xoopsDB->query("SELECT fileid FROM ".UPDATE_FILE." WHERE pkgref=$id AND path=$key");
@@ -244,7 +290,7 @@ class InstallPackage extends Package {
 			$xoopsDB->query("DELETE FROM ".UPDATE_DIFF." WHERE fileref=$fileid");
 			unset($this->modifies[$path]);
 		} else {
-		    $xoopsDB->query("UPDATE ".UPDATE_FILE." SET hash=$hash WHERE fileid=$id");
+		    $xoopsDB->query("UPDATE ".UPDATE_FILE." SET hash=$hash WHERE fileid=$fileid");
 		    if ($md5=='delete') {
 			$xoopsDB->query("DELETE FROM ".UPDATE_DIFF." WHERE fileref=$fileid");
 		    } else {
@@ -277,18 +323,22 @@ class InstallPackage extends Package {
     function getDiff($path) {
 	if ($this->files[$path]=='delete') return '';
 	//if (!isset($this->modifies[$path])) return '';
-	$prefix = $this->getVar('pname').'/'.$this->getVar('origin');
-	$file = XOOPS_UPLOAD_PATH."/update/$prefix/$path";
+	$ver = $this->getVar('origin');
+	if (empty($ver)) $ver = $this->getVar('pversion');
+	$prefix = $this->getVar('pname').'/'.$ver;
+	$file = XOOPS_UPLOAD_PATH."/update/source/$prefix/$path";
 	if (is_binary($path)) return 'file is binary';
 	if (file_exists($file)) { // check local uploads
-	    $lines0 = file(XOOPS_UPLOAD_PATH."/update/$prefix/$path");
+	    $lines0 = file($file);
 	} else {
-	    $lines0 = preg_split('/\n/', $this->getFile($path));
+	    $src = $this->getFile($path);
+	    if ($src==null) return null;
+	    $lines0 = preg_split('/\n/', $src);
 	}
 	$lines1 = file(XOOPS_ROOT_PATH."/$path");
 
 	// normalize cvs/rcs Id tag
-	$tag = '/\\$(Id):[^\\$]*\\$/';
+	$tag = '/\\$(Id|Date|Author|Revision):[^\\$]*\\$/';
 	$rep = '$\\1$';
 	$lines0 = preg_replace($tag, $rep, $lines0);
 	$lines1 = preg_replace($tag, $rep, $lines1);
@@ -302,42 +352,86 @@ class InstallPackage extends Package {
 
     function getFile($path, $type='orig') {
 	global $xoopsModuleConfig;
-	require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
 	$ver = $this->getVar('origin');
 	if (empty($ver)) $ver = $this->getVar('pversion');
-	$url = $xoopsModuleConfig['update_server'].
-	    "file.php?pkg=".urlencode($this->getVar('pname')).
-	    "&v=".urlencode($ver)."&file=".urlencode($path);
-	$snoopy = new Snoopy;
-	$snoopy->lastredirectaddr = 1;
-	if ($snoopy->fetch($url)) return $snoopy->results;
-	return false;
+	return parent::getFile($path, $ver);
     }
 
-    function updatePackage($dstpkg) {
+    function checkUpdates($dstpkg) {
 	$files = $dstpkg->checkFiles();	// changing file sets
+	$updates = array();
 	foreach ($files as $file=>$stat) {
-	    if (!$this->getHash($file)) { // new file
-		echo "<div style='font-weight: bold'>New: $file</div>";
-	    } else {
-		$ostat = $this->checkFile($file);
-		$diff = $this->dbDiff($file);
-		if (!$ostat) { // nochange, do replaced
-		    if (empty($diff)) {
-			echo "<div style='font-weight: bold'>Replace: $file</div>";
-		    } else {
-			echo "<div style='font-weight: bold'>Patch: $file</div>";
-			$f = XOOPS_ROOT_PATH."/$file";
-			echo "<pre>".htmlspecialchars($diff)."</pre>";
-			
-		    }
-		} elseif ($ostat == 'del') { // deleted, nothing to do.
-		    echo "<div style='font-weight: bold'>Skip: $file (removed)</div>";
-		} else {
-		    echo "<div style='font-weight: bold'>Patch: $file</div>";
+	    if (!$this->getHash($file)) $updates[$file] = 'new';
+	    else {
+		if ($this->files[$file] == 'delete') $updates[$file] = 'skip';
+		else {
+		    $diff = $this->dbDiff($file);
+		    $ostat = $this->checkFile($file);
+		    if (!$ostat) { // nochange, do replaced
+			if (empty($diff)) $updates[$file] = 'replace';
+			elseif (is_binary($file)) $updates[$file] = 'skip';
+			else $updates[$file] = 'patch';
+		    } else die('unknown modification exists');
 		}
 	    }
 	}
+	return $updates;
+    }
+
+    function updatePackage($dstpkg) {
+	$work = XOOPS_UPLOAD_PATH.'/update/'.$this->getVar('pname').
+	    '/new-'.$dstpkg->getVar('pversion');
+	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
+	    $file = "$work/$path";
+	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
+	    switch ($method) {
+	    case 'replace':
+		file_put_contents($file, $dstpkg->getFile($path));
+		break;
+	    case 'patch':
+		file_put_contents($file, $dstpkg->getFile($path));
+		$fp = popen("patch '$file'", "w");
+		fwrite($fp, $this->dbDiff($path));
+		if (pclose($fp)) "<div>patch failed: $file</div>";
+		unlink("$file.orig");
+		break;
+	    case 'skip':	// do nothing
+		break;
+	    default:
+		echo "<div>$method: $file<div>\n";
+	    }
+	}
+	return true;
     }
 }
+
+function mkdir_p($path) {
+    if (is_dir($path)) return true;
+    $p = dirname($path);
+    if (!file_exists($p)) if (!mkdir_p($p)) return false;
+    if (is_dir($p) && is_writable($p)) return mkdir($path);
+    return false;
+}
+
+function get_current_version($pname, $vcheck) {
+    global $xoopsDB;
+    switch ($vcheck) {
+    case 'xoops':
+	return preg_replace(array('/^XOOPS /', '/ /'), array('','-'), XOOPS_VERSION);
+    case 'modules':
+	$res = $xoopsDB->query('SELECT path FROM '.UPDATE_PKG.','.UPDATE_FILE.' WHERE pname='.$xoopsDB->quoteString($pname)." AND pkgid=pkgref AND path like '%/xoops_version.php'", 1);
+	if (!$res || $xoopsDB->getRowsNum($res)==0) return false;
+	list($vpath) = $xoopsDB->fetchRow($res);
+	$vfile = XOOPS_ROOT_PATH."/$vpath";
+	if (!file_exists($vfile)) return false;
+	$modpath = dirname($vfile);
+	$lang = $modpath."/language/".$xoopsConfig['language']."/modinfo.php";
+	if (file_exists($lang)) include_once $lang;
+	else include_once $modpath."/language/english/modinfo.php";
+	include $vfile;
+	return $modversion['version'];
+    }
+    return false;
+}
+
 ?>

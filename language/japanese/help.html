@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html languagee="ja">
+<head>
+<title>XOOPS アップデート</title>
+<style>
+.outer { background-color: #808080; }
+td,th { padding: 4px; background: #e8e8e8;}
+.head th  { padding: 4px; background: #d0d0d0; }
+.bnf { color: #008000; }
+.note { font-size: 80%; color: #800000; padding: 0.5em;}
+</style>
+</head>
+<body>
+  <style>
+    .even td,.odd td { virtical-align: top; }
+.chg { color: #c00; } 
+.same { color: #00c; } 
+.mod { color: #f08; }
+  </style>
+  <h1>XOOPS アップデート</h1>
+
+  XOOPSアップデートは、XOOPS 本体およびモジュールの更新を支援します。
+
+  <p>Update モジュールは、<a href="#scriptupdate">スクリプトアッ
+  プデート社</a>の提供する情報に基づき、XOOPSやモジュールの更
+  新の通知、検査および自動 更新機能を提供するものです。</p>
+
+  <ul>
+  <li><a href="#legend">凡例</a></li>
+  <li><a href="#config">一般設定</a></li>
+  <li><a href="#changes">変更履歴</a></li>
+  </ul>
+
+  <hr>
+
+  <a name="legend"></a><h2>凡例</h2>
+
+  <p>パッケージの詳細表示において、表示される一覧の読み方</p>
+
+  変更が検出されたファイルの「変更」リンクをクリックすると、
+  変更内容が差分形式で表示される。
+  また、ファイル名の末尾に、記号を添えて変更状況を簡易に示している。
+
+  <blockquote>
+    <table cellspacing="1" cellpadding="4" class="outer">
+    <tr><th>記号</th><th>意味</th></tr>
+    <tr>
+      <td align="center" class="same">=</td>
+      <td>差異なし (CVS タグのみに変更)</td>
+    </tr>
+    <tr>
+      <td align="center" class="same">+</td>
+      <td>末尾の改行追加のみ</td>
+    </tr>
+    <tr>
+      <td align="center" class="mod">*</td>
+      <td>変更はあるが衝突はない。<br/>
+      スクリプトが変更されており、変更分は新版にそのまま適用可能。
+      </td>
+    </tr>
+    <tr>
+      <td align="center" class="chg">なし</td>
+      <td>スクリプトに変更があり衝突している。<br/>
+      アップグレードには注意が必要。</td>
+    </tr>
+    </table>
+
+    例:
+    <table cellspacing="1" class="outer">
+    <tr><th>状態</th><th>ファイル</th></tr>
+    <tr class="odd"><td><a>変更</a></td><td class="same">admin.php *</td></tr>
+    <tr class="even"><td><a>変更</a></td><td class="same">class/criteria.php +</td></tr>
+    <tr class="odd"><td><a>変更</a></td><td class="mod">class/database/database.php =</td></tr>
+    <tr class="even"><td><a>変更</a></td><td class="chg">class/database/msqldatabase.php</td></tr>
+    </table>
+  </blockquote>
+
+  <a name="config"></a><h2>モジュール設定</h2>
+
+  <blockquote>
+    <table border="0" cellspacing="1" cellpadding="4" class="outer">
+      <tr class="head"><th>項目</th><th>値</th><th>説明</th></tr>
+      <tr class="even">
+        <th align="left">更新サーバ URL</th>
+        <td>http://scriptupdate.jp/server/<br/>
+	  スクリプトアップデート社の提供サーバー
+	</td>
+	<td>更新情報を提供するサーバの URL を指定する</td>
+      </tr>
+      <tr class="odd">
+        <th align="left">更新検査のキャッシュ時間</th>
+	<td><u>3600</u> (1時間)</td>
+	<td>更新情報の取得などで保持するキャッシュの有効時間を秒数で指定する</td>
+      </tr>
+    </table>
+  </blockquote>
+
+  <a name="changes"></a><h2>変更履歴</h2>
+
+<dl>
+  <dd>2006/07/11 update 0.3</dd>
+</dl>
+
+  <a name="scriptupdate"></a><h2>合同会社スクリプトアップデートについて</h2>
+
+  <p>合同会社スクリプトアップデート <a href="http://www.scriptupdate.jp/">http://www.scriptupdate.jp/</a> は、
+  スクリプトベースのコードの更新サービスを提供するために設立された会社です。</p>
+
+<hr>
+<div>$Id: help.html,v 1.1 2006/07/12 18:33:56 nobu Exp $</div>
+</body>
+</html>

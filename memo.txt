@@ -71,7 +71,10 @@ File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
               :
 
 生成スクリプト /server/manifesto.php が作成済み。
+※ cli版の php が必要
+   Fedora Core 2 のコマンドライン版 php は cgi 版なので使えない。
 
 ■ 名称変更への対応
 
 モジュールの名前変更にどう対応するか。
+

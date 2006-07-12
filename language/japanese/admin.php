@@ -16,9 +16,11 @@ define('_AM_PKG_CTIME', '登録日時');
 define('_AM_PKG_VERSION', '版');
 define('_AM_IMPORT_FILE', 'マニフェスト');
 define('_AM_NODATAINFILE', 'データがありません');
+define('_AM_PKG_NOTFOUND', 'パッケージ情報が見付かりません');
 
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
 define('_AM_UPDATE_PKGS', 'パッケージの更新');
+define('_AM_UPDATE_NEWZIP', '更新ファイルのアーカイブ');
 
 define('_AM_STATUS',  '状態');
 define('_AM_OK',  '良好');
@@ -34,9 +36,12 @@ define('_AM_NODATA', 'データがありません');
 define('_AM_FILE_ALL', 'ファイル総数');
 define('_AM_VIEW_CHG', '変更ファイルのみ');
 define('_AM_VIEW_DEL', '削除ファイルを表示');
+define('_AM_DIFF_DIFF', '差分の違い');
 
 define('_AM_FILE_DIFF',  '差分');
-define('_AM_FILE_SAME',  '同じ内容です (CVS タグの変更のみ)');
+define('_AM_FILE_DBDIFF',  '保存差分');
+define('_AM_FILE_SAME',  '変更はありません (CVS タグの変更のみ)');
+define('_AM_FILE_SAMEDIFF',  '保存差分と同じ内容です');
 
 define("_AM_DBUPDATED", "更新しました");
 define("_AM_DBUPDATE_FAIL", "更新に失敗しました");

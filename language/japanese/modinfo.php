@@ -1,10 +1,11 @@
 <?php
-define('_MI_UPDATE_NAME', 'スクリプト更新');
-define('_MI_UPDATE_DESC', 'スクリプトの更新チェックと更新の支援を行う');
+define('_MI_UPDATE_NAME', 'XOOPSアップデート');
+define('_MI_UPDATE_DESC', 'XOOPSおよびモジュールの更新支援を行う');
 
 // admin menus
 define('_MI_UPDATE_ADCHECK', '検査');
 define('_MI_UPDATE_ADPKG', 'パッケージ管理');
+define('_MI_UPDATE_ABOUT', 'Update について');
 
 // Configs
 define('_MI_UPDATE_SERVER', '更新サーバ URL');

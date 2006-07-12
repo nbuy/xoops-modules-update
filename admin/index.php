@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.1 2006/07/03 03:36:16 nobu Exp $
+# $Id: index.php,v 1.2 2006/07/12 18:33:56 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -91,97 +91,117 @@ function check_packages() {
     $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion='HEAD' ORDER BY pkgid");
     if (!$res) die($xoopsDB->error());
     $pkgs = get_packages('all', true);
-    if ($xoopsDB->getRowsNum($res)) {
-	echo "<h3>"._AM_CHECK_LIST."</h3>\n";
-	echo "<style><!--
+    if ($xoopsDB->getRowsNum($res)==0) {
+	redirect_header('index.php?op=pkgreg', 1, _AM_PKG_REGISTER);
+	return false;
+    }
+
+    echo "<h3>"._AM_CHECK_LIST."</h3>\n";
+    echo "<style><!--
 .up td { background-color: #fcc; padding: 5px; }
 --></style>";
-	echo "<table cellspacing='1' class='outer'>\n";
-	echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>"._AM_PKG_NEW."</th><th>"._AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th></th></tr>\n";
-	$n = 0;
-	$update = false;	// find update package?
-	$modify = false;
-	while ($data = $xoopsDB->fetchArray($res)) {
-	    $pkg = new InstallPackage($data);
-	    $pname = $pkg->getVar('pname');
-	    $bg = $n++%2?'even':'odd';
-	    $id = $pkg->getVar('pkgid');
-	    $pversion = '-';
-	    $ver = $pkg->getVar('pversion');
-	    $newpkg = $pkgs[$pname];
-	    if (empty($data['parent']) || $ver != $newpkg['pversion']) {
-		switch ($newpkg['vcheck']) {
-		case 'xoops':
-		    $newver = preg_replace(array('/^XOOPS /', '/ /'), array('','-'), XOOPS_VERSION);
-		    break;
-		case 'modules':
-		    $modpath = XOOPS_ROOT_PATH."/modules/$pname/";
-		    $lang = $modpath."/language/".$xoopsConfig['language']."/modinfo.php";
-		    if (file_exists($lang)) include_once $lang;
-		    else include_once $modpath."/language/english/modinfo.php";
-		    include $modpath.'xoops_version.php';
-		    $newver = $modversion['version'];
-		}
-		$par = import_new_package($pname, $newver);
-		if(empty($data['parent'])) {
+    echo "<table cellspacing='1' class='outer'>\n";
+    echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>"._AM_PKG_NEW."</th><th>"._AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th></th></tr>\n";
+    $n = 0;
+    $update = false;	// find update package?
+    $modify = false;
+    $errors = array();
+    while ($data = $xoopsDB->fetchArray($res)) {
+	$pkg = new InstallPackage($data);
+	$pname = $pkg->getVar('pname');
+	$bg = $n++%2?'even':'odd';
+	$id = $pkg->getVar('pkgid');
+	$pversion = '-';
+	$ver = $pkg->getVar('pversion');
+	$newpkg = $pkgs[$pname];
+	if (empty($data['parent']) || $ver != $newpkg['pversion']) {
+	    $newver = get_current_version($pname, $newpkg['vcheck']);
+	    if (!$newver) {
+		$par = import_new_package($pname, $newpkg['pversion']);
+	    }
+	    $par = import_new_package($pname, $newver);
+	    if (!$par) {
+		$errors[] = "$pname $newver: "._AM_PKG_NOTFOUND;
+	    } elseif ($par->getVar('pkgid') && empty($data['parent'])) {
+		$pkg->setVar('parent', $par->getVar('pkgid'));
+		$pkg->setVar('name', $par->getVar('name'));
+		$pkg->setVar('ctime', time());
+		$pkg->setVar('mtime', 0);
+		$pkg->store();
+	    }
+	}
+	if ($pkg->getVar('parent')) {
+	    $pkg->load();
+	    $pversion = $pkg->getVar('origin');
+	    $curver = get_current_version($pname, $pkg->getVar('vcheck'));
+	    if ($curver != $pversion) {
+		// change current version
+		$par = import_new_package($pname, $curver);
+		if (!$par) {
+		    $errors[] = "$pname $newver: "._AM_PKG_NOTFOUND;
+		} else {
 		    $pkg->setVar('parent', $par->getVar('pkgid'));
 		    $pkg->setVar('name', $par->getVar('name'));
 		    $pkg->setVar('ctime', time());
 		    $pkg->setVar('mtime', 0);
 		    $pkg->store();
-		    $pkg->load();
+		    $pkg->load($pkg->getVar('pkgid'));
 		}
 	    }
-	    if ($pkg->getVar('parent')) {
-		$pkg->load();
-		$pversion = $pkg->getVar('origin');
-		$past = time()-$data['mtime'];
-		if ($past>$xoopsModuleConfig['cache_time']) {
-		    $count = count($pkg->checkFiles());
-		    if (!$count) $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=".time()." WHERE pkgid=".$id);
-		} else {
-		    $count = 0;
-		}
-		$opt = "&pkgid=$id";
-		if (!$count) $opt .= "&view=yes";
-		$op = "<a href='index.php?op=detail$opt'>".($count?_AM_MODIFY:_AM_DETAIL)."</a>";
-	    } else {		// no manifesto
-		$op = "";
+	    $past = time()-$data['mtime'];
+	    if ($past>$xoopsModuleConfig['cache_time']) {
+		$count = count($pkg->checkFiles());
+		if (!$count) $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=".time()." WHERE pkgid=".$id);
+	    } else {
 		$count = 0;
 	    }
-	    if ($count) $modify = true;
-	    if (isset($pkgs[$pname])) {
-		$new =& $pkgs[$pname];
-		$newver = $new['pversion'];
-		$newdate = formatTimestamp($new['dtime'], "m");
-	    } else {
-		$newver = '-';
-		$newdate = '-';
-	    }
-	    $mcount = count($pkg->modifyFiles());
-	    if ($pversion != $newver) {
-		$bg = 'up';
-		$uppkg = import_new_package($pname, $newver);
-		$pid = $uppkg->getVar('pkgid');
-		$newver = "<a href='index.php?op=detail&pkgid=$id&new=$pid&view=yes'>".htmlspecialchars($newver)."</a>";
-		$update = true;
-	    } else {
-		$newver = htmlspecialchars($newver);
-	    }
-	    echo "<tr class='$bg'><td>".htmlspecialchars($pname).
-		"</td><td>".htmlspecialchars($pversion).
-		"</td><td>".$newver.
-		"</td><td>$newdate</td><td align='right'>".
-		$count." ($mcount)</td><td>$op</td></tr>\n";
+	    $opt = "&pkgid=$id";
+	    if (!$count) $opt .= "&view=yes";
+	    $op = "<a href='index.php?op=detail$opt'>".($count?_AM_MODIFY:_AM_DETAIL)."</a>";
+	} else {		// no manifesto
+	    $op = "";
+	    $count = 0;
 	}
-	echo "</table>\n";
-	if ($update && !$modify) {
-	    echo "<form action='index.php?op=update' method='post'>
+	if ($count) $modify = true;
+	if (isset($pkgs[$pname])) {
+	    $new =& $pkgs[$pname];
+	    $newver = $new['pversion'];
+	    $newdate = formatTimestamp($new['dtime'], "m");
+	} else {
+	    $newver = '-';
+	    $newdate = '-';
+	}
+	$mcount = count($pkg->modifyFiles());
+	if ($pversion != $newver) {
+	    $bg = 'up';
+	    $uppkg = import_new_package($pname, $newver);
+	    $pid = $uppkg->getVar('pkgid');
+	    $newver = "<a href='index.php?op=detail&pkgid=$id&new=$pid&view=yes'>".htmlspecialchars($newver)."</a>";
+	    $update = true;
+	} else {
+	    $newver = htmlspecialchars($newver);
+	}
+	echo "<tr class='$bg'><td>".htmlspecialchars($pname).
+	    "</td><td>".htmlspecialchars($pversion).
+	    "</td><td>".$newver.
+	    "</td><td>$newdate</td><td align='right'>".
+	    $count." ($mcount)</td><td>$op</td></tr>\n";
+    }
+    echo "</table>\n";
+    if ($update && !$modify) {
+	echo "<form action='index.php?op=update' method='post'>
 <input type='submit' value='"._AM_UPDATE_PKGS."'>
 </form>\n";
-	}
-	echo "<hr/>";
     }
+    if ($errors) {
+	echo "<br/><div class='errorMsg'>\n";
+	foreach ($errors as $msg) {
+	    echo "$msg<br/>\n";
+	}
+	echo "</div>\n";
+    }
+    echo "<hr/>";
+
     echo "<a href='index.php?op=pkgreg'>"._AM_PKG_REGISTER."</a>";
 }
 
@@ -200,8 +220,9 @@ function update_packages() {
 	    $bg = $n++%2?'even':'odd';
 	    $newpkg = new Package($pname, $pkgs[$pname]['pversion']);
 	    if ($pkg->getVar('parent')!=$newpkg->getVar('pkgid')) {
-		echo "<div>Update $pname to ".$newpkg->getVar('pversion')."<div>";
 		$pkg->updatePackage($newpkg);
+		$zip = "<a href='pack.php?p=".htmlspecialchars($pkg->getVar('pname').'/new-'.$newpkg->getVar('pversion'))."'>"._AM_UPDATE_NEWZIP."</a>";
+		echo "<div>Update ".$pkg->getVar('name')." to ".$newpkg->getVar('pversion')." ($zip)<div>";
 	    } else {		// no manifesto
 		echo "<div>Skip: $pname ".$newpkg->getVar('pversion')."<div>";
 	    }
@@ -214,7 +235,8 @@ function register_packages() {
     $active = get_active_list();
     $pkgs = get_packages('all', true);
     $ins = "INSERT INTO ".UPDATE_PKG."(pname, pversion, vcheck) VALUES(%s,'HEAD',%s)";
-    $del = "DELETE FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
+    $del = "DELETE FROM ".UPDATE_PKG." WHERE pkgid=%u";
+    $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
     $succ = 0;
     $pnames = isset($_POST['pname'])?$_POST['pname']:array();
     foreach ($pkgs as $pkg) {
@@ -227,8 +249,17 @@ function register_packages() {
 	    }
 	} else {		// unchecked
 	    if (isset($active[$pname])) {	// is change?
-		if ($xoopsDB->query(sprintf($del, $qtag))) $succ++;
+		$res = $xoopsDB->query(sprintf($sel, $qtag));
+		if ($res && $xoopsDB->getRowsNum($res)) {
+		    list($pkgid) = $xoopsDB->fetchRow($res);
+		    
+		    if ($xoopsDB->query(sprintf($del, $pkgid))) {
+			$xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pkgid");
+			$succ++;
+		    }
+		}
 	    }
+	    //$xoopsDB->query("SELECT pkgref FROM ".UPDATE_DIFF." LEFT JOIN ".UPDATE_FILE." ON fileid=fileref WHERE fileid IS NULL");
 	}
     }
     return $succ;
@@ -239,7 +270,7 @@ function detail_package($pid, $vmode=false, $new=0) {
     $pkg = new InstallPackage($pid);
     $name = $pkg->getVar('name');
     if ($new) {
-	$newpkg = new Package($new);
+	$newpkg = new InstallPackage($new);
 	$name = $newpkg->getVar('name');
 	$files = $newpkg->checkFiles();
 	$id = $new;
@@ -254,8 +285,9 @@ function detail_package($pid, $vmode=false, $new=0) {
 	return;
     }
     echo "<style>
-.chg {color: #c00; font-weight: bold; } 
-.ok { color: #0c0; }
+.chg { color: #c00; } 
+.same { color: #00c; } 
+.mod { color: #f08; }
 </style>";
     echo "<h3>".$pkg->getVar('name')."</h3>";
     if (!$vmode) {
@@ -263,12 +295,12 @@ function detail_package($pid, $vmode=false, $new=0) {
 	echo "<input type='hidden' name='pkgid' value='$pid'/>\n";
     }
     $dels = count(array_keys($files, 'del'));
-    $sw = " &nbsp; <a href='index.php?op=detail&pkgid=$pid&view=";
     if ($dels && $vmode) {
+	$sw = " &nbsp; <a href='index.php?op=detail&pkgid=$pid&view=";
 	if ($vmode=='yes') $sw .= "all'>"._AM_VIEW_DEL;
 	else $sw .= "yes'>"._AM_VIEW_CHG;
 	$sw .= "</a>";
-    }
+    } else $sw = "";
     echo "<div>"._AM_FILE_ALL." ".count($pkg->files)." &nbsp; ".
 	_AM_CHG." ".count(array_keys($files, 'chg'))." &nbsp; ".
 	_AM_DEL." ".$dels.$sw."</div>\n";
@@ -286,10 +318,29 @@ function detail_package($pid, $vmode=false, $new=0) {
 	if ($stat=='chg') {
 	    $slabel = "<a href='diff.php?pkgid=$id&file=$file' target='diff'>$slabel</a>";
 	}
-	$ck = "<input type='checkbox' name='conf[]' value='$file'/>";
-	echo "<tr class='$bg'>";
-	if (!$vmode) echo "<td>$ck</td>";
-	echo "<td class='$stat'>$slabel</td><td class='$stat'>$file</td></tr>\n";
+
+	if ($vmode) {
+	    $diff = $pkg->dbDiff($file);
+	    if (empty($diff)) {
+		$stat = 'same';
+		$file .= " =";
+	    } elseif (count(preg_split('/\n/', $diff)<6) &&
+		      preg_match('/\n .*\n-\n$/', $diff)) {
+		$stat = 'same';
+		$file .= " +";
+	    } elseif ($new) {
+		$adiff = $newpkg->getDiff($file);
+		if ($adiff == $diff) {
+		    $stat = 'mod';
+		    $file .= " *";
+		}
+	    }
+	    $ck = "";
+	} else {
+	    $ck = "<td><input type='checkbox' name='conf[]' value='$file'/></td>";
+	}
+	echo "<tr class='$bg'>$ck";
+	echo "<td>$slabel</td><td class='$stat'>$file</td></tr>\n";
     }
     echo "</table>\n";
     if (!$vmode) {
