@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
+# $Id: index.php,v 1.4 2006/07/19 16:36:26 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -185,10 +185,10 @@ function delete_package() {
 	    $data = $xoopsDB->fetchArray($res);
 	    $pname = $data['pname'];
 	    $ver = $data['pversion'];
+	    $xoopsDB->query("DELETE FROM ".UPDATE_PKG." WHERE pkgid=".$pkgid);
 	    if (!empty($pname) && !empty($ver)) {
 		$manifesto = "manifesto/$pname-$ver.md5";
 		system("rm -rf '$pname/$ver' '$manifesto'");
-		$xoopsDB->query("DELETE FROM ".UPDATE_PKG." WHERE pkgid=".$pkgid);
 		$xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=".$pkgid);
 	    }
 	}
@@ -546,11 +546,11 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
     $snoopy->lastredirectaddr = 1;
     $pkg = false;
     if ($snoopy->fetch($url)) {
-	if (!empty($snoopy->results)) {
-	    $pkg = new Package();
-	    $pkg->loadStr($snoopy->results);
-	    $pkg->store();
-	}
+	$content =& $snoopy->results;
+	if (empty($content) || preg_match('/^\s*</', $content)) return false;
+	$pkg = new Package();
+	$pkg->loadStr($content);
+	$pkg->store();
     }
     return $pkg;
 }
