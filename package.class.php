@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
+# $Id: package.class.php,v 1.4 2006/07/19 18:44:08 nobu Exp $
 
 // Package class
 // methods:
@@ -124,7 +124,7 @@ class Package {
     }
 
     function loadFile($file) {
-	$this->loadStr(file_get_contents($file));
+	return $this->loadStr(file_get_contents($file));
     }
 
     function getVar($name=null) {
