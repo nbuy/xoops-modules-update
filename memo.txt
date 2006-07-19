@@ -74,6 +74,22 @@ File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
 ※ cli版の php が必要
    Fedora Core 2 のコマンドライン版 php は cgi 版なので使えない。
 
+■ セッションの確認
+
+クライアント側
+modules/update/functions.php: function session_auth_server()
+
+    modules/server/authsvr.php に対して HTTP 引数を POST する。
+      + doamin=domain/path
+      + pass=onetime-pass
+    結果は および、次回の認証に使うパスワードが返される。
+      + X-Status: OK/NG
+      + X-Next-Password: new-password
+
+サーバー側
+modules/server/authsvr.php
+    認証を行い、認証に成功した場合、新パスワードを生成して返す。
+
 ■ 名称変更への対応
 
 モジュールの名前変更にどう対応するか。

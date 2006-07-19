@@ -1,10 +1,10 @@
 <?php
-# checking XOOPS installed files
-# $Id: xoops_version.php,v 1.2 2006/07/12 18:33:55 nobu Exp $
+# XoopsUpdate - Client Module
+# $Id: xoops_version.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.3,
+	    'version' => 0.6,
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 ScriptUpdate LLC.",
@@ -24,6 +24,15 @@ $modversion['hasAdmin'] = 1;
 $modversion['adminindex'] = "admin/index.php";
 $modversion['adminmenu'] = "admin/menu.php";
 
+// Blocks
+$modversion['blocks'][1]=
+    array('file' => "update_notice.php",
+	  'name' => _MI_UPDATE_NOTICE,
+	  'description' => _MI_UPDATE_NOTICE_DESC,
+	  'show_func' => 'b_update_notice',
+	  //'template' => 'eguide_block_top.html'
+	);
+
 // Config
 $modversion['hasconfig'] = 1;
 
@@ -42,4 +51,15 @@ $modversion['config'][]=array(
     'formtype' => 'text',
     'valuetype' => 'int',
     'default' => 3600);
+
+$modversion['config'][]=array(
+    'name' => 'update_method',
+    'title' => '_MI_UPDATE_METHOD',
+    'description' => '_MI_UPDATE_METHOD_DESC',
+    'formtype' => 'select',
+    'valuetype' => 'text',
+    'default' => 'skip',
+    'options' => array(_MI_UPDATE_METHOD_SKIP=>'skip',
+		       _MI_UPDATE_METHOD_REPLACE=>'replace',
+		       _MI_UPDATE_METHOD_PATCH=>'patch'));
 ?>

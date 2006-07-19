@@ -12,37 +12,77 @@ td,th { padding: 4px; background: #e8e8e8;}
 </head>
 <body>
   <style>
-    .even td,.odd td { virtical-align: top; }
+.even td,.odd td { virtical-align: top; }
 .chg { color: #c00; } 
 .same { color: #00c; } 
 .mod { color: #f08; }
+pre { color: #620; }
+em { color: #084; font-weight: bold;}
+.note { color: #800000; }
+ol li { list-style: decimal; }
   </style>
   <h1>XOOPS アップデート</h1>
 
-  XOOPSアップデートは、XOOPS 本体およびモジュールの更新を支援します。
+  <p>XoopsUpdate は、XOOPS 本体およびモジュールの更新作業を支援するシステムです。
+  <b>Update モジュール</b>は、XoopsUpdate のサービスを
+  実現するためのクライアントモジュールです。</p>
 
-  <p>Update モジュールは、<a href="#scriptupdate">スクリプトアッ
-  プデート社</a>の提供する情報に基づき、XOOPSやモジュールの更
-  新の通知、検査および自動 更新機能を提供するものです。</p>
+  <p>Update モジュールは、<a href="#scriptupdate">スクリプトアップデート社</a>
+  の提供する情報に基づき、次の機能を提供します。</p>
+  <ul>
+    <li>XOOPSやモジュールの更新状況の通知</li>
+    <li>導入ファイルの検査と<a href="#legend">変更状況</a>の調査</li>
+    <li>更新用差分ファイルとバックアップの作成</li>
+    <li>自動更新 - <a href="#install">システム設定</a>が必要</li>
+  </ul>
 
   <ul>
-  <li><a href="#legend">凡例</a></li>
   <li><a href="#config">一般設定</a></li>
   <li><a href="#changes">変更履歴</a></li>
   </ul>
 
   <hr>
 
-  <a name="legend"></a><h2>凡例</h2>
+  <a name="howtouse"></a><h2>使い方</h2>
+
+  <p>導入後「更新パッケージを登録」で、更新対象にするパッケージを選択し、
+  登録する。例えば、XOOPS のコアシステムを更新したい場合「XOOPS2」を選択する。</p>
+
+  <p>「更新検査」メニューを選択すれば、インストールされているバージョンの変更状況を調べて一覧に表示される。</p>
+
+  <p>検査するサーバの環境によっては、検査に必要な情報の取得が正しく行えない場合がある。この場合、<a href="http://www.scriptupdate.jp/modules/server/">パッケージ情報の提供元</a>から、パッケージ情報を取得し「パッケージ管理」で手動登録する。パッケージ情報は、現在導入している版とアップグレード対象の版 (通常は最新版) を登録する。</p>
+
+  <p>更新手順は次の順に行う</p>
+  <ol>
+    <li>「調整」状態のパッケージを選択し、変更を確認して登録する。-- これは、導入された状態を正しいものとして認識するための操作である。</li>
+    <li>登録が完了し最新版が存在すると更新作業を行うことができる。</li>
+    <li>「<a href="#install">システム設定</a>」を適切に行っている場合、[更新を実行する] のボタンが表示される。なお、更新操作は更新後に表示される「更新を元に戻す」ボタンで取り消すことができる。</li>
+    <li>また「差分バックアップ」「更新差分を作成」のリンクで更新前と後のファイルをアーカイブとしてダウンロードできる。これらのファイルを上書きでアップロードすれば更新 (あるいは更新の取消) ができる。</li>
+  </ol>
+
+  <a name="install"></a><h2>システム設定</h2>
+
+  <p>Update モジュールを使って、<b>自動更新</b>を行う場合以下の設定を行う。
+  この変更は、アップロード権限で更新を実行するために行うものである。</p>
+  <blockquote>
+  <div>/etc/sudoers に追加</div>
+  <pre>apache  ALL=(<em>username</em>) NOPASSWD: <em>XOOPS_ROOT_PATH</em>/modules/update/fileutil.sh</pre>
+  <ul>
+    <li><em>username</em> ... XOOPS のファイルをアップロードしているユーザ名</li>
+    <li><em>XOOPS_ROOT_PATH</em> ... XOOPS が導入してあるフォルダのパス</li>
+  </ul>
+  </blockquote>
+
+  <a name="legend"></a><h2>更新状況</h2>
 
   <p>パッケージの詳細表示において、表示される一覧の読み方</p>
 
   変更が検出されたファイルの「変更」リンクをクリックすると、
   変更内容が差分形式で表示される。
-  また、ファイル名の末尾に、記号を添えて変更状況を簡易に示している。
+  また、バージョン間の更新についてはファイル名の末尾に、記号を添えて変更状況を簡易に示している。
 
   <blockquote>
-    <table cellspacing="1" cellpadding="4" class="outer">
+    <table cellspacing="1" cellpadding="4" class="outer" width="100%">
     <tr><th>記号</th><th>意味</th></tr>
     <tr>
       <td align="center" class="same">=</td>
@@ -53,24 +93,25 @@ td,th { padding: 4px; background: #e8e8e8;}
       <td>末尾の改行追加のみ</td>
     </tr>
     <tr>
+      <td align="center" class="same">なし</td>
+      <td>新版で更新が行われている</td>
+    </tr>
+    <tr>
       <td align="center" class="mod">*</td>
-      <td>変更はあるが衝突はない。<br/>
-      スクリプトが変更されており、変更分は新版にそのまま適用可能。
-      </td>
+      <td>スクリプトが変更されているが、新版にもそのまま適用可能である。</td>
     </tr>
     <tr>
       <td align="center" class="chg">なし</td>
-      <td>スクリプトに変更があり衝突している。<br/>
-      アップグレードには注意が必要。</td>
+      <td>スクリプトに変更があり衝突いて、新版にそのままは適用が難しい。</td>
     </tr>
     </table>
 
     例:
-    <table cellspacing="1" class="outer">
+    <table cellspacing="1" class="outer" width="100%">
     <tr><th>状態</th><th>ファイル</th></tr>
-    <tr class="odd"><td><a>変更</a></td><td class="same">admin.php *</td></tr>
+    <tr class="odd"><td><a>変更</a></td><td class="same">admin.php =</td></tr>
     <tr class="even"><td><a>変更</a></td><td class="same">class/criteria.php +</td></tr>
-    <tr class="odd"><td><a>変更</a></td><td class="mod">class/database/database.php =</td></tr>
+    <tr class="odd"><td><a>変更</a></td><td class="mod">class/database/database.php *</td></tr>
     <tr class="even"><td><a>変更</a></td><td class="chg">class/database/msqldatabase.php</td></tr>
     </table>
   </blockquote>
@@ -81,16 +122,21 @@ td,th { padding: 4px; background: #e8e8e8;}
     <table border="0" cellspacing="1" cellpadding="4" class="outer">
       <tr class="head"><th>項目</th><th>値</th><th>説明</th></tr>
       <tr class="even">
-        <th align="left">更新サーバ URL</th>
+        <th>更新サーバ URL</th>
         <td>http://scriptupdate.jp/server/<br/>
 	  スクリプトアップデート社の提供サーバー
 	</td>
 	<td>更新情報を提供するサーバの URL を指定する</td>
       </tr>
       <tr class="odd">
-        <th align="left">更新検査のキャッシュ時間</th>
+        <th>更新検査のキャッシュ時間</th>
 	<td><u>3600</u> (1時間)</td>
 	<td>更新情報の取得などで保持するキャッシュの有効時間を秒数で指定する</td>
+      </tr>
+      <tr class="even">
+        <th>更新時の衝突回避方法</th>
+	<td><u>旧ファイルを残す</u><br/>新ファイルで上書きする<br/>強制的に更新を適用する</td>
+	<td>更新に矛盾が検出された場合の取り扱い方法を指定する (個別の詳細指定が行われない場合)<br/>新ファイルで上書きした場合、改造内容情報は無くなるので注意する。</td>
       </tr>
     </table>
   </blockquote>
@@ -98,15 +144,16 @@ td,th { padding: 4px; background: #e8e8e8;}
   <a name="changes"></a><h2>変更履歴</h2>
 
 <dl>
-  <dd>2006/07/11 update 0.3</dd>
+  <dd>2006/07/19 alpha バージョン</dd>
 </dl>
 
   <a name="scriptupdate"></a><h2>合同会社スクリプトアップデートについて</h2>
 
-  <p>合同会社スクリプトアップデート <a href="http://www.scriptupdate.jp/">http://www.scriptupdate.jp/</a> は、
-  スクリプトベースのコードの更新サービスを提供するために設立された会社です。</p>
+  <p><a href="http://www.scriptupdate.jp/">合同会社スクリプトアップデート</a>
+  は、スクリプトベースのコードの保守・更新サービスを提供する会社である。
+  本モジュールは、スクリプトアップデートで開発・配布されている。</p>
 
 <hr>
-<div>$Id: help.html,v 1.1 2006/07/12 18:33:56 nobu Exp $</div>
+<div>$Id: help.html,v 1.2 2006/07/19 12:47:49 nobu Exp $</div>
 </body>
 </html>

@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.2 2006/07/12 18:33:55 nobu Exp $
+# $Id: package.class.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
 
 // Package class
 // methods:
@@ -9,12 +9,14 @@
   // ->load($id)              restore instance by id
   // ->store()                store instance in database (result store id)
 
+include_once "functions.php";
+
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
 define('UPDATE_DIFF', $xoopsDB->prefix('update_diff'));
 
 function is_binary($file) {
-    return preg_match('/\.(png|gif|jpe?g|swf|zip|gz|tar)$/i', $file);
+    return preg_match('/\.(png|gif|jpe?g|swf|ico|zip|gz|tar)$/i', $file);
     //$type = preg_replace('/^[^:]*:\s*/', '', `file $file`);
     //return preg_match('/(image)/', $file);
 }
@@ -111,6 +113,7 @@ class Package {
 		if (!in_array($fname, $vdirty)) $vdirty[] = $fname;
 	    }
 	}
+	if (empty($vars['pname'])) return false;
 	$files = &$this->files;
 	while ($ln = array_shift($lines)) {
 	    if (empty($ln)) continue;
@@ -196,16 +199,15 @@ class Package {
     }
 
     function getFile($path, $ver=null) {
-	global $xoopsModuleConfig;
 	if (empty($ver)) $ver = $this->getVar('pversion');
 	$pname = $this->getVar('pname');
+	$server = get_update_server();
 	$file = XOOPS_ROOT_PATH."/uploads/update/source/$pname/$ver/".$path;
 	if (file_exists($file)) {
 	    return file_get_contents($file);
-	} else {
+	} elseif ($server) {
 	    require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
-	    $url = $xoopsModuleConfig['update_server'].
-		"file.php?pkg=".urlencode($pname).
+	    $url = $server."file.php?pkg=".urlencode($pname).
 		"&v=".urlencode($ver)."&file=".urlencode($path);
 	    $snoopy = new Snoopy;
 	    $snoopy->lastredirectaddr = 1;
@@ -213,6 +215,22 @@ class Package {
 	    else echo "<div>Error: $url</div>";
 	}
 	return null;
+    }
+
+    function getDiff($path) {
+	if ($this->files[$path]=='delete') return '';
+	//if (!isset($this->modifies[$path])) return '';
+	$ver = $this->getVar('origin');
+	if (empty($ver)) $ver = $this->getVar('pversion');
+	$prefix = $this->getVar('pname').'/'.$ver;
+	$file = XOOPS_UPLOAD_PATH."/update/source/$prefix/$path";
+	if (is_binary($path)) return 'file is binary';
+	if (file_exists($file)) $src = file_get_contents($file);
+	else $src = $this->getFile($path);
+	$dest = file_get_contents(XOOPS_ROOT_PATH."/$path");
+	$tag = array('/\\$(Id|Date|Author|Revision):[^\\$]*\\$/', '/\r/');
+	$rep = array('$\\1$','');
+	return diff_str(preg_replace($tag,$rep,$src), preg_replace($tag,$rep,$dest));
     }
 }
 
@@ -320,36 +338,6 @@ class InstallPackage extends Package {
 	return $diff;
     }
 
-    function getDiff($path) {
-	if ($this->files[$path]=='delete') return '';
-	//if (!isset($this->modifies[$path])) return '';
-	$ver = $this->getVar('origin');
-	if (empty($ver)) $ver = $this->getVar('pversion');
-	$prefix = $this->getVar('pname').'/'.$ver;
-	$file = XOOPS_UPLOAD_PATH."/update/source/$prefix/$path";
-	if (is_binary($path)) return 'file is binary';
-	if (file_exists($file)) { // check local uploads
-	    $lines0 = file($file);
-	} else {
-	    $src = $this->getFile($path);
-	    if ($src==null) return null;
-	    $lines0 = preg_split('/\n/', $src);
-	}
-	$lines1 = file(XOOPS_ROOT_PATH."/$path");
-
-	// normalize cvs/rcs Id tag
-	$tag = '/\\$(Id|Date|Author|Revision):[^\\$]*\\$/';
-	$rep = '$\\1$';
-	$lines0 = preg_replace($tag, $rep, $lines0);
-	$lines1 = preg_replace($tag, $rep, $lines1);
-
-	include_once 'Text/Diff.php';
-	include_once 'Text/Diff/Renderer/unified.php';
-	$diff = &new Text_Diff($lines0, $lines1);
-	$renderer = &new Text_Diff_Renderer_unified();
-	return $renderer->render($diff);
-    }
-
     function getFile($path, $type='orig') {
 	global $xoopsModuleConfig;
 	$ver = $this->getVar('origin');
@@ -357,34 +345,47 @@ class InstallPackage extends Package {
 	return parent::getFile($path, $ver);
     }
 
+    // return array(filename=>method);
+    //   method: new, replace: write 
     function checkUpdates($dstpkg) {
+	global $xoopsModuleConfig;
 	$files = $dstpkg->checkFiles();	// changing file sets
-	$updates = array();
 	foreach ($files as $file=>$stat) {
-	    if (!$this->getHash($file)) $updates[$file] = 'new';
+	    $method = '';
+	    if (!$this->getHash($file)) $method = 'new';
 	    else {
-		if ($this->files[$file] == 'delete') $updates[$file] = 'skip';
+		if ($this->files[$file] == 'delete') $method = 'skip';
 		else {
 		    $diff = $this->dbDiff($file);
-		    $ostat = $this->checkFile($file);
-		    if (!$ostat) { // nochange, do replaced
-			if (empty($diff)) $updates[$file] = 'replace';
-			elseif (is_binary($file)) $updates[$file] = 'skip';
-			else $updates[$file] = 'patch';
-		    } else die('unknown modification exists');
+		    if (empty($diff) ||
+			(count(preg_split('/\n/', $diff)<6) &&
+			 preg_match('/\n .*\n-\n$/', $diff))) {	// no change
+			$method = 'replace';
+		    } else {	// changed
+			$ostat = $this->checkFile($file);
+			$adiff = $dstpkg->getDiff($file);
+			if (empty($adiff)) $method = 'replace';
+			elseif ($diff == $adiff) $method = 'patch';
+			elseif (!$ostat) { // nochange, do replaced
+			    if (is_binary($file)) $method = 'skip';
+			    else $method = $xoopsModuleConfig['update_method'];
+			} else die("$ostat: unknown modification in $file");
+		    }
 		}
 	    }
+	    if ($method) $updates[$file] = $method;
 	}
 	return $updates;
     }
 
-    function updatePackage($dstpkg) {
-	$work = XOOPS_UPLOAD_PATH.'/update/'.$this->getVar('pname').
-	    '/new-'.$dstpkg->getVar('pversion');
+    function updatePackage($dstpkg, $dir="new") {
+	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
 	    $file = "$work/$path";
+	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    switch ($method) {
+	    case 'new':
 	    case 'replace':
 		file_put_contents($file, $dstpkg->getFile($path));
 		break;
@@ -392,13 +393,27 @@ class InstallPackage extends Package {
 		file_put_contents($file, $dstpkg->getFile($path));
 		$fp = popen("patch '$file'", "w");
 		fwrite($fp, $this->dbDiff($path));
-		if (pclose($fp)) "<div>patch failed: $file</div>";
-		unlink("$file.orig");
-		break;
-	    case 'skip':	// do nothing
+		if (pclose($fp)) echo "<div>patch failed: $file</div>";
+		if (file_exists("$file.orig")) unlink("$file.orig");
+		if (file_exists("$file.rej")) echo "<div>patch failed: $file</div>";
+		    
 		break;
 	    default:
 		echo "<div>$method: $file<div>\n";
+	    }
+	}
+	return true;
+    }
+
+    function backupPackage($dstpkg, $dir="backup") {
+	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
+	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
+	    $file = "$work/$path";
+	    if ($method == 'skip') continue;
+	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
+	    $src = XOOPS_ROOT_PATH."/$path";
+	    if (!link($src, $file)) {
+		if (!copy($src, $file)) echo "<div>copy fail: $file<div>\n";
 	    }
 	}
 	return true;
@@ -413,12 +428,28 @@ function mkdir_p($path) {
     return false;
 }
 
-function get_current_version($pname, $vcheck) {
+function count_modify_files($pkgid) {
     global $xoopsDB;
+    $res = $xoopsDB->query("SELECT count(fileid) FROM ".UPDATE_FILE." WHERE pkgref=$pkgid");
+    list($ret) = $xoopsDB->fetchRow($res);
+    return $ret;
+}
+
+function get_pkg_info($pkgid, $name='*') {
+    global $xoopsDB;
+    $res = $xoopsDB->query("SELECT $name FROM ".UPDATE_PKG." WHERE pkgid=$pkgid");
+    if ($name == '*') return $xoopsDB->fetchArray($res);
+    list($ret) = $xoopsDB->fetchRow($res);
+    return $ret;
+}
+
+function get_current_version($pname, $vcheck) {
+    global $xoopsDB, $xoopsConfig;
+    $ver = false;
     switch ($vcheck) {
     case 'xoops':
 	return preg_replace(array('/^XOOPS /', '/ /'), array('','-'), XOOPS_VERSION);
-    case 'modules':
+    case 'module':
 	$res = $xoopsDB->query('SELECT path FROM '.UPDATE_PKG.','.UPDATE_FILE.' WHERE pname='.$xoopsDB->quoteString($pname)." AND pkgid=pkgref AND path like '%/xoops_version.php'", 1);
 	if (!$res || $xoopsDB->getRowsNum($res)==0) return false;
 	list($vpath) = $xoopsDB->fetchRow($res);
@@ -434,4 +465,99 @@ function get_current_version($pname, $vcheck) {
     return false;
 }
 
+function get_local_packages($pname='') {
+    global $xoopsDB;
+    
+    $cond = "pversion<>'HEAD'";
+    $idx=empty($pname);
+    $cond .= $pname?" AND pname=".$xoopsDB->quoteString($pname):"";
+    $res = $xoopsDB->query("SELECT pname, pversion, dtime, vcheck, name FROM ".
+	UPDATE_PKG." WHERE $cond ORDER BY pname,dtime DESC");
+    $pre = "";
+    $pkgs = array();
+    while ($data = $xoopsDB->fetchArray($res)) {
+	if ($pname || $data['pname'] != $pre) {
+	    $pre = $data['pname'];
+	    $pkg = array('pname'=>$pre,
+			 'pversion'=>$data['pversion'],
+			 'dtime'=>$data['dtime'],
+			 'vcheck'=>$data['vcheck'],
+			 'name'=>$data['name']);
+	    if ($idx) $pkgs[$pre] = $pkg;
+	    else $pkgs[] = $pkg;
+	}
+    }
+    return $pkgs;
+}
+
+function get_packages($pname='all', $idx=false) {
+    $server = get_update_server();
+    $pkgs = array();
+    if (empty($server)) return get_local_packages();
+    $url = $server."list.php?pkg=$pname";
+    $list = file_get_url($url);
+    foreach (preg_split('/\n/', $list) as $ln) {
+	$ln = trim($ln);
+	if (empty($ln)) continue;
+	$F = preg_split('/,/', trim($ln), 5);
+	$pname = $F[0];
+	$pkg = array('pname'=> $pname,
+		     'pversion'=> $F[1],
+		     'dtime'=> strtotime($F[2]),
+		     'vcheck'=> $F[3],
+		     'name'=> $F[4]);
+	if ($idx) $pkgs[$pname] = $pkg;
+	else $pkgs[] = $pkg;
+    }
+    return $pkgs;
+}
+
+function get_update_server() {
+    global $xoopsModuleConfig;
+    $server = $xoopsModuleConfig['update_server'];
+    if (preg_match('/^\w+:/', $server)) return $server."/modules/server/";
+    return '';
+}
+
+global $sudouser;
+$sudouser=null;
+
+function mysystem($cmd) {
+    global $sudouser, $xoopsModule;
+    $util = XOOPS_ROOT_PATH.'/modules/'.$xoopsModule->getVar('dirname').'/fileutil.sh';
+    if (empty($sudouser)) {
+	$pw = posix_getpwuid(fileowner($util));
+	$sudouser = $pw['name'];
+    }
+    $fp = popen("sudo -u '$sudouser' '$util' $cmd", 'r');
+    $result = "";
+    while ($ln = fgets($fp)) {
+	$result .= $ln;
+    }
+    pclose($fp);
+    return $result;
+}
+
+function package_expire($pname='') {
+    global $xoopsDB;
+    if ($pname) $pname = " AND pname='$pname'";
+    $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pversion='HEAD'".$pname);
+}
+
+function temp_put_contents($str) {
+    $tmp = tempnam("/tmp", "diff");
+    $fp = fopen($tmp, "w");
+    fwrite($fp, $str);
+    fclose($fp);
+    return $tmp;
+}
+
+function diff_str($str0, $str1) {
+    $tmp0 = temp_put_contents($str0);
+    $tmp1 = temp_put_contents($str1);
+    $diff = `diff -u '$tmp0' '$tmp1'`;
+    unlink($tmp0);
+    unlink($tmp1);
+    return preg_replace('/^[^\n]*\n[^\n]*\n/', '', $diff);
+}
 ?>

@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: diff.php,v 1.2 2006/07/12 18:33:55 nobu Exp $
+# $Id: diff.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -9,7 +9,17 @@ $myts =& MyTextSanitizer::getInstance();
 
 $pkgid = intval($_GET['pkgid']);
 $file = $myts->stripSlashesGPC($_GET['file']);
+$type = isset($_GET['type'])?$_GET['type']:"";
 $pkg = new InstallPackage($pkgid);
+
+$diff = $pkg->dbDiff($file);
+if ($type == "raw") {
+    $name = basename($file).".diff";
+    header("Content-Type: text/plain; charset"._CHARSET);
+    header("Content-Disposition: inline; filename=$name");
+    echo $diff;
+    exit;
+}
 
 $chg = $pkg->checkFile($file);
 $atitle = htmlspecialchars($pkg->getVar('name').": $file");
@@ -34,36 +44,38 @@ pre { font-size: 12px; padding: 2px;}
 </style>\n";
 
 $res = $xoopsDB->query("SELECT name FROM ".UPDATE_FILE.", ".UPDATE_DIFF.",
-".UPDATE_PKG." WHERE path=".$xoopsDB->quoteString($file)." AND fileid=fileref AND pkgref=pkgid");
+".UPDATE_PKG." WHERE path=".$xoopsDB->quoteString($file)." AND fileid=fileref AND pkgref=pkgid AND pkgid=".$pkgid);
 list($name) = $xoopsDB->fetchRow($res);
 $title = htmlspecialchars("$name: $file");
-
-$diff = $pkg->dbDiff($file);
 
 if ($chg) {
     echo "<h1>"._AM_FILE_DIFF." - $atitle</h1>";
 
     $adiff = $pkg->getDiff($file);
-    if ($adiff == $diff) echo "<p>"._AM_FILE_SAMEDIFF."</p>";
+    if (empty($adiff)) echo "<p>"._AM_FILE_SAME."</p>";
+    else if ($adiff == $diff) echo "<p>"._AM_FILE_SAMEDIFF."</p>";
     else {
-	$ddif = &new Text_Diff(split("\n", $diff), split("\n", $adiff));
-	$renderer = &new Text_Diff_Renderer_unified();
-	$bdiff = $renderer->render($ddif);
+	$bdiff = diff_str($diff, $adiff);
 	if (strlen($bdiff)<strlen($adiff)) {
 	    echo "<div class='msg'>"._AM_DIFF_DIFF." $name - ".$pkg->getVar('pversion')."</div>";
 	    echo "<pre class='chg'>".colorDiff($bdiff)."</pre>";
 	} else {
 	    echo "<div class='msg'>"._AM_HAS_CHANGE.' - '.$pkg->getVar('pversion')."</div>";
 	    if ($adiff) echo "<pre class='chg'>".colorDiff($adiff)."</pre>";
-	    else echo "<p>"._AM_FILE_SAME."</p>";
 	}
     }
 }
 
-echo "<h1>"._AM_FILE_DBDIFF." - $title</h1>";
+if ($diff!=false) {
+    echo "<h1>"._AM_FILE_DBDIFF." - $title</h1>";
 
-if ($diff) echo "<pre class='db'>".colorDiff($diff)."</pre>";
-elseif ($diff==='') echo "<p>"._AM_FILE_SAME."</p>";
+    if ($diff) {
+	echo "<a href='diff.php?pkgid=$pkgid&file=$file&type=raw'>"._AM_DIFF_RAW."</a>";
+	echo "<pre class='db'>".colorDiff($diff)."</pre>";
+    } else {
+	echo "<p>"._AM_FILE_SAME."</p>";
+    }
+}
 
 echo "</body>
 </html>";
