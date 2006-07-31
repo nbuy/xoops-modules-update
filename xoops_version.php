@@ -1,10 +1,10 @@
 <?php
 # XoopsUpdate - Client Module
-# $Id: xoops_version.php,v 1.4 2006/07/19 18:44:59 nobu Exp $
+# $Id: xoops_version.php,v 1.5 2006/07/31 13:55:16 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.61,
+	    'version' => 0.62,
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 ScriptUpdate LLC.",
@@ -20,6 +20,10 @@ $modversion['tables'][] = "update_package";
 $modversion['tables'][] = "update_file";
 $modversion['tables'][] = "update_diff";
 
+// OnInstall - blocks positon maniplate
+$modversion['onInstall'] = "oninstall.php";
+
+// Admin things
 $modversion['hasAdmin'] = 1;
 $modversion['adminindex'] = "admin/index.php";
 $modversion['adminmenu'] = "admin/menu.php";
@@ -30,7 +34,7 @@ $modversion['blocks'][1]=
 	  'name' => _MI_UPDATE_NOTICE,
 	  'description' => _MI_UPDATE_NOTICE_DESC,
 	  'show_func' => 'b_update_notice',
-	  //'template' => 'eguide_block_top.html'
+	  'template' => 'update_notice.html'
 	);
 
 // Config

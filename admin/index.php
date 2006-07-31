@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.4 2006/07/19 16:36:26 nobu Exp $
+# $Id: index.php,v 1.5 2006/07/31 13:55:16 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -10,6 +10,7 @@ $myts =& MyTextSanitizer::getInstance();
 
 $op = isset($_GET['op'])?$_GET['op']:'';
 $file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG, 'ok'=>_AM_OK);
+define('ROLLBACK', XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz");
 
 if (isset($_POST['import'])) {
     redirect_result(import_file(), 'index.php?op=pkgs', _AM_NODATAINFILE);
@@ -41,6 +42,11 @@ case 'regpkg':			// package managiment
 case 'pkgs':			// package managiment
     import_form();
     reglist_packages();
+    $svr = get_update_server();
+    if ($svr) {
+	echo "<hr/>\n";
+	echo "<a href='$svr'>"._AM_PKG_FETCH."</a>";
+    }
     break;
 
 case 'detail':
@@ -103,6 +109,7 @@ function check_packages() {
 	    if (!$count) $opt .= "&view=yes";
 	    $op = "<a href='index.php?op=detail$opt'>".($count?_AM_MODIFY:_AM_DETAIL)."</a>";
 	} else {		// no manifesto
+	    $pversion = "";
 	    $op = "";
 	    $count = 0;
 	}
@@ -136,7 +143,7 @@ function check_packages() {
 	    $count." ($mcount)</td><td>$op</td></tr>\n";
     }
     echo "</table>\n";
-    $rollback = XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz";
+    $rollback = ROLLBACK;
     if ($update && !$modify) {
 	echo "<table cellpadding='5'>
 <tr>
@@ -200,6 +207,8 @@ function reg_set_packages() {
     global $xoopsDB;
     $active = get_active_list();
     $pkgs = get_packages('all', true);
+    $rollback = ROLLBACK;
+    if (file_exists($rollback)) unlink($rollback); // expired
     $ins = "INSERT INTO ".UPDATE_PKG."(pname, pversion, vcheck) VALUES(%s,'HEAD',%s)";
     $del = "DELETE FROM ".UPDATE_PKG." WHERE pkgid=%u";
     $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
@@ -338,6 +347,7 @@ function modify_package() {
     global $xoopsDB, $myts;
     $pkg = new InstallPackage(intval($_POST['pkgid']));
     $n = 0;
+    if (empty($_POST['conf'])) return $n;
     foreach ($_POST['conf'] as $path) {
 	$path = $myts->stripSlashesGPC($path);
 	if ($pkg->setModify($path)) $n++;
@@ -358,12 +368,13 @@ function get_active_list() {
 function reg_packages() {
     echo "<h3>"._AM_REG_PACKAGES."</h3>";
     $active = get_active_list();
-    $pkgs = get_packages();
+    $pkgs = get_packages('all', true);
     if (count($pkgs)) {
 	$input = "<input type='checkbox' name='pname[]' value='%s'%s/>";
 	echo "<form method='POST' name='PackageSelect'>\n";
 	echo "<table cellspacing='1' class='outer'>\n";
-	echo "<tr><th></th><th>"._AM_PKG_PNAME.
+	$checkall = "<input type='checkbox' id='allpname' name='allpname' onclick='xoopsCheckAll(\"PackageSelect\", \"allpname\")'/>";
+	echo "<tr><th align='center'>$checkall</th><th>"._AM_PKG_PNAME.
 	    "</th><th>"._AM_PKG_VERSION.
 	    "</th><th>"._AM_PKG_NAME.
 	    "</th><th>"._AM_PKG_CTIME.
@@ -371,15 +382,22 @@ function reg_packages() {
 	$n = 0;
 	foreach ($pkgs as $pkg) {
 	    $pname = $pkg['pname'];
-	    $ck = isset($active[$pname])?" checked":"";
+	    $ck = isset($active[$pname])?" checked='checked'":"";
 	    $ckbox = 
 	    $bg = $n++%2?'even':'odd';
 	    $qname = htmlspecialchars($pname);
+	    if (empty($pkg['pversion'])) {
+		$check = '-';
+		$date = '';
+	    } else {
+		$check = sprintf($input, $qname, $ck);
+		$date = formatTimestamp($pkg['dtime']);
+	    }
 	    echo "<tr class='$bg'><td align='center'>".
-		sprintf($input, $qname, $ck)."</td><td>$qname</td><td>".
+		$check."</td><td>".$qname."</td><td>".
 		htmlspecialchars($pkg['pversion'])."</td><td>".
 		htmlspecialchars($pkg['name'])."</td><td>".
-		formatTimestamp($pkg['dtime'])."</td></tr>\n";
+		$date."</td></tr>\n";
 	}
 	echo "</table>\n";
 	echo "<table cellpadding='5'>
@@ -480,7 +498,7 @@ function xoopsFormValidate_ImportForm() {
 }
 
 function rollback_update() {
-    $file = XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz";
+    $file = ROLLBACK;
     if (!file_exists($file)) return false;
     $base = XOOPS_ROOT_PATH;
     mysystem("rollback '$file' '$base'");
@@ -492,7 +510,13 @@ function rollback_update() {
 function import_file() {
     $file = $_FILES['file']['name'];
     $temp = $_FILES['file']['tmp_name'];
-    chdir(XOOPS_UPLOAD_PATH."/update/source");
+    $dir = XOOPS_UPLOAD_PATH."/update/source";
+    if (!is_dir($dir)) {
+	$bdir = basename($dir);
+	if (!is_dir($bdir)) mkdir($bdir);
+	mkdir($dir);
+    }
+    chdir($dir);
     if (preg_match('/\\.md5$/', $file)) return import_manifesto($temp);
     if (preg_match('/\\.tar\\.gz$/', $file)) return import_package($temp);
     return false;

@@ -1,5 +1,5 @@
 <?php
-# $Id: admin.php,v 1.3 2006/07/19 12:47:49 nobu Exp $
+# $Id: admin.php,v 1.4 2006/07/31 13:55:16 nobu Exp $
 define('_AM_CHECKSUM_TITLE', '検査対象の指定');
 define('_AM_MASTER_URL', '検査リスト');
 define('_AM_VERBOSE', '詳細を表示する');
@@ -27,12 +27,14 @@ define('_AM_PKG_DTIME', '配布日時');
 define('_AM_PKG_CTIME', '登録日時');
 define('_AM_PKG_VERSION', '版');
 define('_AM_PKG_SOURCE', 'ソース');
+define('_AM_PKG_REGISTER', '更新パッケージを登録してください');
 define('_AM_REGIST_LIST', '登録済みパッケージ');
 define('_AM_REGIST_SUBMIT', '変更ファイルを登録する');
 define('_AM_IMPORT_FILE_MAX', '最大サイズ');
 define('_AM_DESCRIPTION', '説明');
 define('_AM_NODATAINFILE', 'データがありません');
 define('_AM_PKG_NOTFOUND', 'パッケージ情報が見付かりません');
+define('_AM_PKG_FETCH', 'パッケージ情報を手動で取得する');
 
 define('_AM_UPDATE_BACKUP', '差分バックアップ');
 define('_AM_UPDATE_ARCHIVE', '更新差分を作成');

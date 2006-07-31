@@ -1,5 +1,5 @@
 <?php
-# $Id: modinfo.php,v 1.3 2006/07/19 12:47:49 nobu Exp $
+# $Id: modinfo.php,v 1.4 2006/07/31 13:55:16 nobu Exp $
 define('_MI_UPDATE_NAME', 'XOOPSアップデート');
 define('_MI_UPDATE_DESC', 'XOOPSおよびモジュールの更新支援を行う');
 
@@ -22,6 +22,6 @@ define('_MI_UPDATE_METHOD_REPLACE', '新ファイルで上書きする');
 define('_MI_UPDATE_METHOD_PATCH', '強制的に更新を適用する');
 
 # Blocks
-define('_MI_UPDATE_NOTICE', 'XoopsUpdate通知');
+define('_MI_UPDATE_NOTICE', 'アップデート通知');
 define('_MI_UPDATE_NOTICE_DESC', 'パッケージの更新状況を通知する');
 ?>

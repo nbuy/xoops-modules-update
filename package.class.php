@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.4 2006/07/19 18:44:08 nobu Exp $
+# $Id: package.class.php,v 1.5 2006/07/31 13:55:16 nobu Exp $
 
 // Package class
 // methods:
@@ -490,24 +490,58 @@ function get_local_packages($pname='') {
     return $pkgs;
 }
 
+function get_install_packages() {
+    global $xoopsDB;
+    $xoops = array('contact', 'mydownloads', 'mylinks', 'newbb', 'news',
+		   'sections', 'system', 'xoopsfaq', 'xoopsheadline',
+		   'xoopsmembers', 'xoopspartners', 'xoopspoll');
+    $res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." WHERE isactive");
+    $xver = preg_match('/XOOPS.* JP$/', XOOPS_VERSION)?'XOOPS2-JP':'XOOPS2';
+    $pkgs = array($xver);
+    while (list($dirname) = $xoopsDB->fetchRow($res)) {
+	if (in_array($dirname, $xoops)) continue;
+	$pkgs[]=$dirname;
+    }
+    return $pkgs;
+}
+
 function get_packages($pname='all', $idx=false) {
     $server = get_update_server();
     $pkgs = array();
-    if (empty($server)) return get_local_packages();
-    $url = $server."list.php?pkg=$pname";
-    $list = file_get_url($url);
-    foreach (preg_split('/\n/', $list) as $ln) {
-	$ln = trim($ln);
-	if (empty($ln)) continue;
-	$F = preg_split('/,/', trim($ln), 5);
-	$pname = $F[0];
-	$pkg = array('pname'=> $pname,
-		     'pversion'=> $F[1],
-		     'dtime'=> strtotime($F[2]),
-		     'vcheck'=> $F[3],
-		     'name'=> $F[4]);
-	if ($idx) $pkgs[$pname] = $pkg;
-	else $pkgs[] = $pkg;
+    $inst = get_install_packages();
+    if (empty($server)) {
+	$pkgs = get_local_packages();
+    } else {
+	$url = $server."list.php?pkg=$pname";
+	$list = file_get_url($url);
+	foreach (preg_split('/\n/', $list) as $ln) {
+	    $ln = trim($ln);
+	    if (empty($ln)) continue;
+	    $F = preg_split('/,/', trim($ln), 5);
+	    $pname = $F[0];
+	    $pkg = array('pname'=> $pname,
+			 'pversion'=> $F[1],
+			 'dtime'=> strtotime($F[2]),
+			 'vcheck'=> $F[3],
+			 'name'=> $F[4]);
+	    if ($idx) $pkgs[$pname] = $pkg;
+	    else $pkgs[] = $pkg;
+	    $found = array_search($pname, $inst);
+	    if ($found!==false) unset($inst[$found]);
+	}
+	$pkg = array('pname'=> '',
+		     'pversion'=> '',
+		     'dtime'=> 0,
+		     'vcheck'=>'modules',
+		     'name'=>'');
+	$module_handler =& xoops_gethandler('module');
+	foreach ($inst as $name) {
+	    $module =& $module_handler->getByDirname($name);
+	    $pkg['name'] = $module->getVar('name')." ".$module->getVar('version')*0.01;
+	    $pkg['pname'] = $name;
+	    if ($idx && empty($pkgs[$name])) $pkgs[$name] = $pkg;
+	    else $pkgs[] = $pkg;
+	}
     }
     return $pkgs;
 }
