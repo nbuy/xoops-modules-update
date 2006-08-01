@@ -1,8 +1,9 @@
 <?php
 # show language help.html
-# $Id: help.php,v 1.1 2006/07/12 18:33:55 nobu Exp $
+# $Id: help.php,v 1.2 2006/08/01 07:01:33 nobu Exp $
 
 include '../../../include/cp_header.php';
+include '../functions.php';
 
 // for compat older PHP 4.x
 if(!function_exists("file_get_contents")) {
@@ -18,8 +19,8 @@ if(!function_exists("file_get_contents")) {
 }
 
 xoops_cp_header();
+echo mystyle();
 include 'mymenu.php';
-
 $myts =& MyTextSanitizer::getInstance();
 $file = isset($_GET['file'])?
     $myts->stripSlashesGPC($_GET['file']):"help.html";

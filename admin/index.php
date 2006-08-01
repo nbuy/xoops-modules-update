@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.5 2006/07/31 13:55:16 nobu Exp $
+# $Id: index.php,v 1.6 2006/08/01 07:01:33 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -9,7 +9,8 @@ include_once XOOPS_ROOT_PATH.'/class/xoopsformloader.php';
 $myts =& MyTextSanitizer::getInstance();
 
 $op = isset($_GET['op'])?$_GET['op']:'';
-$file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG, 'ok'=>_AM_OK);
+$file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG,
+		    'new'=>_AM_NEW, 'ok'=>_AM_OK);
 define('ROLLBACK', XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz");
 
 if (isset($_POST['import'])) {
@@ -143,7 +144,6 @@ function check_packages() {
 	    $count." ($mcount)</td><td>$op</td></tr>\n";
     }
     echo "</table>\n";
-    $rollback = ROLLBACK;
     if ($update && !$modify) {
 	echo "<table cellpadding='5'>
 <tr>
@@ -161,13 +161,17 @@ function check_packages() {
 </tr>
 </table>\n";
     }
+    $rollback = ROLLBACK;
     if (file_exists($rollback)) {
-	$tm = formatTimestamp(filectime($rollback));
+	$ctime = filectime($rollback);
+	$tm = _AM_UPDATE_TIME.' '.formatTimestamp($ctime, 'm');
+	$expire = $ctime+$xoopsModuleConfig['cache_time'];
+	$until = _AM_UPDATE_EXPIRE.' '.formatTimestamp($expire, 'H:i');
 	echo "<table cellpadding='5'>
   <tr><td>
     <form action='index.php?op=rollback' method='post'>
     <input type='submit' value='"._AM_UPDATE_ROLLBACK."'></form></td>
-    <td>"._AM_UPDATE_TIME." $tm</td></tr>
+    <td>$tm ($until)</td></tr>
 </table>\n";
     }
     if ($errors) {
@@ -207,8 +211,7 @@ function reg_set_packages() {
     global $xoopsDB;
     $active = get_active_list();
     $pkgs = get_packages('all', true);
-    $rollback = ROLLBACK;
-    if (file_exists($rollback)) unlink($rollback); // expired
+    if (file_exists(ROLLBACK)) unlink(ROLLBACK); // expired
     $ins = "INSERT INTO ".UPDATE_PKG."(pname, pversion, vcheck) VALUES(%s,'HEAD',%s)";
     $del = "DELETE FROM ".UPDATE_PKG." WHERE pkgid=%u";
     $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
@@ -258,11 +261,11 @@ function clear_package($pid) {
 function detail_package($pid, $vmode=false, $new=0) {
     global $file_state;
     $pkg = new InstallPackage($pid);
-    $name = $pkg->getVar('name');
+    $title = $pkg->getVar('name');
     if ($new) {
-	$newpkg = new InstallPackage($new);
-	$name = $newpkg->getVar('name');
-	$files = $newpkg->checkFiles();
+	$newpkg = new Package($new);
+	$title .= _AM_UPDATE_TO.$newpkg->getVar('name');
+	$files = $pkg->checkFiles($newpkg);
 	$id = $new;
 	//$files = $pkg->checkPackage($newpkg);
     } else {
@@ -275,7 +278,7 @@ function detail_package($pid, $vmode=false, $new=0) {
 	return;
     }
     echo mystyle();
-    echo "<h3>".$pkg->getVar('name')."</h3>";
+    echo "<h3>$title</h3>";
     if (!$vmode) {
 	echo "<form method='POST' name='FileMark'>\n";
 	echo "<input type='hidden' name='pkgid' value='$pid'/>\n";
@@ -283,8 +286,8 @@ function detail_package($pid, $vmode=false, $new=0) {
     $dels = count(array_keys($files, 'del'));
     if ($dels && $vmode) {
 	$sw = " &nbsp; <a href='index.php?op=detail&pkgid=$pid&view=";
-	if ($vmode=='yes') $sw .= "all'>"._AM_VIEW_DEL;
-	else $sw .= "yes'>"._AM_VIEW_CHG;
+	if ($vmode=='yes') $sw .= "all'>"._AM_VIEW_ALL;
+	else $sw .= "yes'>"._AM_VIEW_SCRIPT;
 	$sw .= "</a>";
 	$fm = "<form method='post'>
 <input name='clear' type='submit' value='"._AM_UPDATE_CLEAR."'/>
@@ -301,12 +304,20 @@ function detail_package($pid, $vmode=false, $new=0) {
     echo "<th>"._AM_STATUS."</th><th>"._AM_FILE."</th></tr>\n";
     $n = 0;
     foreach ($files as $file=>$stat) {
+	if ($vmode=='yes') {
+	    if ($stat=='del') continue;
+	    if (is_binary($file) || preg_match('/\\.css$/', $file)) continue;
+	}
 	$bg = $n++%2?'even':'odd';
 	$ck = "<input type='checkbox' name='conf[]' value='$file'/>";
-	if ($vmode=='yes' && $stat=='del') continue;
 	$slabel = $file_state[$stat];
-	if ($stat=='chg') {
+	switch ($stat) {
+	case 'chg':
 	    $slabel = "<a href='diff.php?pkgid=$id&file=$file' target='diff'>$slabel</a>";
+	    break;
+	case 'new':
+	    $slabel = "<b>$slabel</b>";
+	    break;
 	}
 
 	if ($vmode) {
@@ -338,7 +349,7 @@ function detail_package($pid, $vmode=false, $new=0) {
 	echo "<input type='submit' name='accept' value='"._AM_REGIST_SUBMIT."'/>\n";
 	echo "</form>\n";
     }
-    if ($fm && count($files)) {
+    if ($fm && count($files) && !$new) {
 	echo "<hr/>".$fm;
     }
 }
@@ -352,6 +363,7 @@ function modify_package() {
 	$path = $myts->stripSlashesGPC($path);
 	if ($pkg->setModify($path)) $n++;
     }
+    if ($n && file_exists(ROLLBACK)) unlink(ROLLBACK); // expired
     return $n;
 }
 
@@ -366,7 +378,8 @@ function get_active_list() {
 }
 
 function reg_packages() {
-    echo "<h3>"._AM_REG_PACKAGES."</h3>";
+    echo "<h3>"._AM_REG_PACKAGES."</h3>\n";
+    echo "<p class='desc'>"._AM_REG_DESCRIPTION."</p>\n";
     $active = get_active_list();
     $pkgs = get_packages('all', true);
     if (count($pkgs)) {
@@ -577,17 +590,5 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
 	$pkg->store();
     }
     return $pkg;
-}
-
-function mystyle() {
-    return "<style><!--
-.chg { color: #c00; } 
-.same { color: #00c; } 
-.mod { color: #f08; }
-.up td { background-color: #fcc; padding: 5px; }
-.fix td { background-color: #ccf; padding: 5px; }
-.ng {color: #c00; font-weight: bold; }
-.ok { color: #0c0; }
---></style>\n";
 }
 ?>

@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.1 2006/07/19 12:47:48 nobu Exp $
+# $Id: functions.php,v 1.2 2006/08/01 07:01:33 nobu Exp $
 
 function file_get_url($url, $allow_xml=false) {
     require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
@@ -56,5 +56,9 @@ function session_auth_server() {
 	}
     }
     return $status;
+}
+
+function mystyle() {
+    return '<link rel="stylesheet" type="text/css" media="all" href="'.XOOPS_URL.'/modules/'.basename(dirname(__FILE__)).'/style.css" />'."\n";
 }
 ?>

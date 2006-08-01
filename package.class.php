@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.5 2006/07/31 13:55:16 nobu Exp $
+# $Id: package.class.php,v 1.6 2006/08/01 07:01:33 nobu Exp $
 
 // Package class
 // methods:
@@ -147,19 +147,31 @@ class Package {
 	return @$this->files[$file];
     }
 
-    function checkFile($path) {
+    function checkFile($path, $nhash='') {
 	$file = XOOPS_ROOT_PATH."/".$path;
 	$hash = $this->getHash($path);
 	if (!file_exists($file)) {
-	    if ($hash != 'delete') return 'del';
-	} elseif (md5_file($file)!=$hash) return 'chg';
+	    if ($nhash) {
+		if ($hash == 'delete') return 'del';
+		else return 'new';
+	    } elseif ($hash != 'delete') return 'del';
+	} else {
+	    $chash = md5_file($file);
+	    if ($nhash && $nhash!=$hash) return 'chg';
+	    if ($chash!=$hash) return 'chg';
+	}
 	return false;
     }
 
-    function checkFiles() {
+    function checkFiles($dest=null) {
 	$updates = array();
-	foreach ($this->files as $file => $hash) {
-	    if ($stat = $this->checkFile($file)) {
+	$nhash = '';
+	$chk = $dest?$dest:$this;
+	foreach ($chk->files as $file => $hash) {
+	    if ($dest) {
+		$nhash = $dest->getHash($file);
+	    }
+	    if ($stat = $this->checkFile($file, $nhash)) {
 		$updates[$file] = $stat;
 	    }
 	}
@@ -211,6 +223,7 @@ class Package {
 		"&v=".urlencode($ver)."&file=".urlencode($path);
 	    $snoopy = new Snoopy;
 	    $snoopy->lastredirectaddr = 1;
+	    $snoopy->timed_out = 5;
 	    if ($snoopy->fetch($url)) return $snoopy->results;
 	    else echo "<div>Error: $url</div>";
 	}
@@ -227,7 +240,9 @@ class Package {
 	if (is_binary($path)) return 'file is binary';
 	if (file_exists($file)) $src = file_get_contents($file);
 	else $src = $this->getFile($path);
-	$dest = file_get_contents(XOOPS_ROOT_PATH."/$path");
+	$orig = XOOPS_ROOT_PATH."/$path";
+	
+	$dest = file_exists($orig)?file_get_contents($orig):'';
 	$tag = array('/\\$(Id|Date|Author|Revision):[^\\$]*\\$/', '/\r/');
 	$rep = array('$\\1$','');
 	return diff_str(preg_replace($tag,$rep,$src), preg_replace($tag,$rep,$dest));
@@ -412,7 +427,7 @@ class InstallPackage extends Package {
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    $src = XOOPS_ROOT_PATH."/$path";
-	    if (!link($src, $file)) {
+	    if (file_exists($src) && !link($src, $file)) {
 		if (!copy($src, $file)) echo "<div>copy fail: $file<div>\n";
 	    }
 	}

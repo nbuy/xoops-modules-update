@@ -1,5 +1,5 @@
 <?php
-# $Id: admin.php,v 1.4 2006/07/31 13:55:16 nobu Exp $
+# $Id: admin.php,v 1.5 2006/08/01 07:01:33 nobu Exp $
 define('_AM_CHECKSUM_TITLE', '検査対象の指定');
 define('_AM_MASTER_URL', '検査リスト');
 define('_AM_VERBOSE', '詳細を表示する');
@@ -7,7 +7,8 @@ define('_AM_CHECKING', '検査を実行');
 
 define('_AM_PKG_FILEIMPORT', 'パッケージの登録');
 define('_AM_REG_PACKAGES', '更新パッケージを登録');
-define('_AM_REG_SUBMIT', '更新する');
+define('_AM_REG_SUBMIT', '登録する');
+define('_AM_REG_DESCRIPTION', '更新検査を実施するパッケージをチェック (選択) して、「'._AM_REG_SUBMIT.'」ボタンで登録してください。チェックを外すと、登録を解除します。なお、パッケージ情報が登録されていないモジュールは選択できないようになっています。');
 
 define('_AM_AUTH_REGISTER', '更新サーバーで認証登録を行う');
 define('_AM_AUTH_NEWPASS', 'サーバーの認証パスワードを登録');
@@ -47,14 +48,17 @@ define('_AM_UPDATE_PKGS', 'パッケージの更新');
 define('_AM_UPDATE_SUBMIT', '更新を実行する');
 define('_AM_UPDATE_ROLLBACK', '更新を元に戻す');
 define('_AM_UPDATE_TIME', '更新時間');
+define('_AM_UPDATE_EXPIRE', '有効期限');
 define('_AM_NOUPDATE', '更新はありません');
 define('_AM_UPDATE_NEWZIP', '更新ファイルのアーカイブ');
 define('_AM_UPDATE_CLEAR', '変更登録解除');
+define('_AM_UPDATE_TO', ' → ');
 
 define('_AM_STATUS',  '状態');
 define('_AM_OK',  '良好');
 define('_AM_CHG', '変更');
 define('_AM_DEL', '削除');
+define('_AM_NEW', '新規');
 
 define('_AM_FILE',  'ファイル');
 define('_AM_BYTES',  'バイト');
@@ -64,8 +68,8 @@ define('_AM_CHANGES', '変更数');
 define('_AM_HAS_CHANGE', '導入ファイルに変更があります');
 define('_AM_NODATA', 'データがありません');
 define('_AM_FILE_ALL', 'ファイル総数');
-define('_AM_VIEW_CHG', '変更ファイルのみ');
-define('_AM_VIEW_DEL', '削除ファイルを表示');
+define('_AM_VIEW_SCRIPT', '変更スクリプトのみ表示');
+define('_AM_VIEW_ALL', '全てのファイルを表示');
 define('_AM_DIFF_DIFF', '差分の違い');
 define('_AM_DIFF_RAW', '直接表示');
 
