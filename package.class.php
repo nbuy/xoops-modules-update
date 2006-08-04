@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.6 2006/08/01 07:01:33 nobu Exp $
+# $Id: package.class.php,v 1.7 2006/08/04 04:41:37 nobu Exp $
 
 // Package class
 // methods:
@@ -393,6 +393,11 @@ class InstallPackage extends Package {
 	return $updates;
     }
 
+    function unchecked() {
+	global $xoopsDB;
+	$xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pkgid=".$this->getVar('pkgid'));
+    }
+
     function updatePackage($dstpkg, $dir="new") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
@@ -417,6 +422,8 @@ class InstallPackage extends Package {
 		echo "<div>$method: $file<div>\n";
 	    }
 	}
+	// force checking again
+	$this->unchecked();
 	return true;
     }
 
@@ -462,13 +469,10 @@ function get_current_version($pname, $vcheck) {
     global $xoopsDB, $xoopsConfig;
     $ver = false;
     switch ($vcheck) {
-    case 'xoops':
+    case '':
 	return preg_replace(array('/^XOOPS /', '/ /'), array('','-'), XOOPS_VERSION);
-    case 'module':
-	$res = $xoopsDB->query('SELECT path FROM '.UPDATE_PKG.','.UPDATE_FILE.' WHERE pname='.$xoopsDB->quoteString($pname)." AND pkgid=pkgref AND path like '%/xoops_version.php'", 1);
-	if (!$res || $xoopsDB->getRowsNum($res)==0) return false;
-	list($vpath) = $xoopsDB->fetchRow($res);
-	$vfile = XOOPS_ROOT_PATH."/$vpath";
+    default:
+	$vfile = XOOPS_ROOT_PATH."/modules/$vcheck/xoops_version.php";
 	if (!file_exists($vfile)) return false;
 	$modpath = dirname($vfile);
 	$lang = $modpath."/language/".$xoopsConfig['language']."/modinfo.php";
@@ -552,6 +556,7 @@ function get_packages($pname='all', $idx=false) {
 	$module_handler =& xoops_gethandler('module');
 	foreach ($inst as $name) {
 	    $module =& $module_handler->getByDirname($name);
+	    if (empty($module)) continue;
 	    $pkg['name'] = $module->getVar('name')." ".$module->getVar('version')*0.01;
 	    $pkg['pname'] = $name;
 	    if ($idx && empty($pkgs[$name])) $pkgs[$name] = $pkg;

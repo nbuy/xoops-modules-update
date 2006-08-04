@@ -1,4 +1,4 @@
-# $Id: mysql.sql,v 1.1 2006/07/03 03:36:16 nobu Exp $
+# $Id: mysql.sql,v 1.2 2006/08/04 04:41:37 nobu Exp $
 
 CREATE TABLE update_package (
     pkgid	integer NOT NULL PRIMARY KEY auto_increment,
@@ -9,7 +9,7 @@ CREATE TABLE update_package (
     dtime	integer NOT NULL default 0,
     ctime	integer NOT NULL default 0,
     mtime	integer NOT NULL default 0,
-    vcheck	varchar(10) NOT NULL default '',
+    vcheck	varchar(20) NOT NULL default '',
     KEY (pname,pversion)
 );
 

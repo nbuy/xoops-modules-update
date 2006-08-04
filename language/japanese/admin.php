@@ -1,11 +1,28 @@
 <?php
-# $Id: admin.php,v 1.5 2006/08/01 07:01:33 nobu Exp $
+# Update Administration language resources
+# $Id: admin.php,v 1.6 2006/08/04 04:41:37 nobu Exp $
+
+// update and cheking
+define('_AM_CHECK_LIST', '検査パッケージ一覧');
+define('_AM_UPDATE_PKGS', 'パッケージの更新');
+define('_AM_UPDATE_SUBMIT', '更新を実行する');
+define('_AM_UPDATE_ROLLBACK', '更新を元に戻す');
+define('_AM_UPDATE_TIME', '更新時間');
+define('_AM_UPDATE_EXPIRE', '有効期限');
+define('_AM_NOUPDATE', '更新はありません');
+define('_AM_UPDATE_NEWZIP', '更新ファイルのアーカイブ');
+define('_AM_UPDATE_CLEAR', '変更登録解除');
+define('_AM_UPDATE_TO', ' → ');
+
 define('_AM_CHECKSUM_TITLE', '検査対象の指定');
 define('_AM_MASTER_URL', '検査リスト');
 define('_AM_VERBOSE', '詳細を表示する');
 define('_AM_CHECKING', '検査を実行');
 
+// packages administration
 define('_AM_PKG_FILEIMPORT', 'パッケージの登録');
+
+// 
 define('_AM_REG_PACKAGES', '更新パッケージを登録');
 define('_AM_REG_SUBMIT', '登録する');
 define('_AM_REG_DESCRIPTION', '更新検査を実施するパッケージをチェック (選択) して、「'._AM_REG_SUBMIT.'」ボタンで登録してください。チェックを外すと、登録を解除します。なお、パッケージ情報が登録されていないモジュールは選択できないようになっています。');
@@ -29,30 +46,21 @@ define('_AM_PKG_CTIME', '登録日時');
 define('_AM_PKG_VERSION', '版');
 define('_AM_PKG_SOURCE', 'ソース');
 define('_AM_PKG_REGISTER', '更新パッケージを登録してください');
+
 define('_AM_REGIST_LIST', '登録済みパッケージ');
 define('_AM_REGIST_SUBMIT', '変更ファイルを登録する');
 define('_AM_IMPORT_FILE_MAX', '最大サイズ');
 define('_AM_DESCRIPTION', '説明');
 define('_AM_NODATAINFILE', 'データがありません');
 define('_AM_PKG_NOTFOUND', 'パッケージ情報が見付かりません');
-define('_AM_PKG_FETCH', 'パッケージ情報を手動で取得する');
+define('_AM_FETCH_DESCRIPTION', '手動で、更新パッケージを入手して登録する場合、<a href="{SERVER}">こちらの配布ページ</a>からダウンロードして上記のフォームから登録します。');
+
 
 define('_AM_UPDATE_BACKUP', '差分バックアップ');
 define('_AM_UPDATE_ARCHIVE', '更新差分を作成');
 define('_AM_UPDATE_SUCC', 'パッケージの更新を行いました');
 define('_AM_UPDATE_ERROR', 'パッケージの更新に問題が生じた可能性があります。');
 define('_AM_UPDATE_ERROR_DESC', 'メッセージを確認して対処を行ってください。');
-
-define('_AM_CHECK_LIST', '検査パッケージ一覧');
-define('_AM_UPDATE_PKGS', 'パッケージの更新');
-define('_AM_UPDATE_SUBMIT', '更新を実行する');
-define('_AM_UPDATE_ROLLBACK', '更新を元に戻す');
-define('_AM_UPDATE_TIME', '更新時間');
-define('_AM_UPDATE_EXPIRE', '有効期限');
-define('_AM_NOUPDATE', '更新はありません');
-define('_AM_UPDATE_NEWZIP', '更新ファイルのアーカイブ');
-define('_AM_UPDATE_CLEAR', '変更登録解除');
-define('_AM_UPDATE_TO', ' → ');
 
 define('_AM_STATUS',  '状態');
 define('_AM_OK',  '良好');

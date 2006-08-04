@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.6 2006/08/01 07:01:33 nobu Exp $
+# $Id: index.php,v 1.7 2006/08/04 04:41:37 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -41,13 +41,16 @@ case 'regpkg':			// package managiment
     break;
 
 case 'pkgs':			// package managiment
+    echo "<fieldset>\n";
     import_form();
-    reglist_packages();
     $svr = get_update_server();
     if ($svr) {
-	echo "<hr/>\n";
-	echo "<a href='$svr'>"._AM_PKG_FETCH."</a>";
+	$src = array("{SERVER}");
+	$dst = array($svr);
+	echo "<p>".str_replace($src, $dst, _AM_FETCH_DESCRIPTION)."</p>";
     }
+    echo "</fieldset>\n";
+    reglist_packages();
     break;
 
 case 'detail':
@@ -188,7 +191,9 @@ function check_packages() {
 
 function delete_package() {
     global $xoopsDB;
-    chdir(XOOPS_UPLOAD_PATH."/update/source");
+    $base = XOOPS_UPLOAD_PATH."/update/source";
+    if (!is_dir($base)) return false;
+    chdir($base);
     if (empty($_POST['pid'])) return false;
     foreach ($_POST['pid'] as $pkgid=>$v) {
 	$res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pkgid=".$pkgid);
@@ -255,6 +260,7 @@ function clear_package($pid) {
     }
     $xoopsDB->query("DELETE FROM ".UPDATE_DIFF." WHERE fileref IN (".join(',',$fids).")");
     $xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pid");
+    $xoopsDB->query("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pkgid=$pid");
     return true;
 }
 
