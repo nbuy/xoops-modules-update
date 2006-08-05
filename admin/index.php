@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.7 2006/08/04 04:41:37 nobu Exp $
+# $Id: index.php,v 1.8 2006/08/05 05:47:20 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -192,8 +192,8 @@ function check_packages() {
 function delete_package() {
     global $xoopsDB;
     $base = XOOPS_UPLOAD_PATH."/update/source";
-    if (!is_dir($base)) return false;
-    chdir($base);
+    $srcdir = is_dir($base);
+    if ($srcdir) chdir($base);
     if (empty($_POST['pid'])) return false;
     foreach ($_POST['pid'] as $pkgid=>$v) {
 	$res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pkgid=".$pkgid);
@@ -203,8 +203,10 @@ function delete_package() {
 	    $ver = $data['pversion'];
 	    $xoopsDB->query("DELETE FROM ".UPDATE_PKG." WHERE pkgid=".$pkgid);
 	    if (!empty($pname) && !empty($ver)) {
-		$manifesto = "manifesto/$pname-$ver.md5";
-		system("rm -rf '$pname/$ver' '$manifesto'");
+		if ($srcdir) {
+		    $manifesto = "manifesto/$pname-$ver.md5";
+		    system("rm -rf '$pname/$ver' '$manifesto'");
+		}
 		$xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=".$pkgid);
 	    }
 	}
