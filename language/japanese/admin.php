@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.6 2006/08/04 04:41:37 nobu Exp $
+# $Id: admin.php,v 1.7 2006/08/08 06:46:29 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
@@ -18,6 +18,10 @@ define('_AM_CHECKSUM_TITLE', '検査対象の指定');
 define('_AM_MASTER_URL', '検査リスト');
 define('_AM_VERBOSE', '詳細を表示する');
 define('_AM_CHECKING', '検査を実行');
+
+// options
+define('_AM_OPTS_TITLE', '%sパッケージ詳細設定');
+define('_AM_OPTS_RENAME', 'モジュール名称の変更');
 
 // packages administration
 define('_AM_PKG_FILEIMPORT', 'パッケージの登録');

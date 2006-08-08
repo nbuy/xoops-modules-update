@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.7 2006/08/04 04:41:37 nobu Exp $
+# $Id: package.class.php,v 1.8 2006/08/08 06:46:29 nobu Exp $
 
 // Package class
 // methods:
@@ -50,7 +50,8 @@ $meta_fileds = array(
     'x-package-name'=>'pname',
     'x-package-version'=>'pversion',
     'x-version-check'=>'vcheck',
-    'x-name'=>'name');
+    'x-name'=>'name',
+    'x-optional-dir'=>'options');
 
 // package object was keep meta information of fileset:
 //    file consistency, come from, modification, etc.
@@ -65,6 +66,7 @@ class Package {
     var $fdirty=array();
     var $vars=array();
     var $vdirty=array();
+    var $options=array();
 
     function Package($id=0, $ver='') {
 	if (is_array($id)) $this->vars=$id;
@@ -89,8 +91,11 @@ class Package {
 	$this->vdirty = array();
 	$res = $xoopsDB->query("SELECT hash, path FROM ".UPDATE_FILE." WHERE pkgref=".$id);
 	$files =& $this->files;
+	$options =& $this->options;
 	while (list($hash, $path) = $xoopsDB->fetchRow($res)) {
-	    $files[$path] = $hash;
+	    if ($hash=='options') $options[$path] = true;
+	    elseif ($hash=='no-options') $options[$path] = false;
+	    else $files[$path] = $hash;
 	}
 	return $res;
     }
@@ -99,6 +104,7 @@ class Package {
 	global $meta_fileds;
 	$vars = &$this->vars;
 	$vdirty = &$this->vdirty;
+	$options = &$this->options;
 	$lines = preg_split('/\n/', $content);
 	while ($ln = array_shift($lines)) {
 	    if (preg_match('/^$/', $ln)) break;
@@ -109,8 +115,13 @@ class Package {
 	    }
 	    if (isset($meta_fileds[$name])) {
 		$fname = $meta_fileds[$name];
-		$vars[$fname] = $value;
-		if (!in_array($fname, $vdirty)) $vdirty[] = $fname;
+		if ($fname=='options') {
+		    $path = preg_replace('/^\s*!\s*/', '', $value);
+		    $options[$path] = ($path==$value);
+		} else {
+		    $vars[$fname] = $value;
+		    if (!in_array($fname, $vdirty)) $vdirty[] = $fname;
+		}
 	    }
 	}
 	if (empty($vars['pname'])) return false;
@@ -167,7 +178,9 @@ class Package {
 	$updates = array();
 	$nhash = '';
 	$chk = $dest?$dest:$this;
+	$pat = $this->regIgnore();
 	foreach ($chk->files as $file => $hash) {
+	    if ($pat && preg_match($pat, $file)) continue;
 	    if ($dest) {
 		$nhash = $dest->getHash($file);
 	    }
@@ -195,6 +208,10 @@ class Package {
 	    $vars['pkgid'] = $pkgid = $xoopsDB->getInsertID();
 	    if (empty($pkgid)) die('Insert');
 	    $sql = "INSERT INTO ".UPDATE_FILE."(pkgref, hash, path)VALUES($pkgid,%s,%s)";
+	    foreach ($this->options as $path=>$val) {
+		$tag = $val?"'options'":"'no-options'";
+		$xoopsDB->queryF(sprintf($sql, $tag, $xoopsDB->quoteString($path)));
+	    }
 	    foreach ($this->files as $path => $hash) {
 		$xoopsDB->queryF(sprintf($sql, $xoopsDB->quoteString($hash), $xoopsDB->quoteString($path)));
 	    }
@@ -277,22 +294,47 @@ class InstallPackage extends Package {
 	    $vars['origin'] = $this->getVar('pversion');
 	    $mods = array();
 	    while (list($hash, $path) = $xoopsDB->fetchRow($res)) {
-		if (isset($files[$path])) {
-		    $mods[$path] = $files[$path];
+		if ($hash=='options') {
+		    $this->options[$path] = true;
+		} elseif ($hash=='no-options') {
+		    $this->options[$path] = false;
+		} else {
+		    if (isset($files[$path])) {
+			$mods[$path] = $files[$path];
+		    }
+		    $files[$path] = $hash;
 		}
-		$files[$path] = $hash;
 	    }
-	    //$this->files = $files;
+	    $pattern = $this->regIgnore();
+	    if ($pattern) {
+		foreach ($files as $path=>$hash) {
+		    if (preg_match($pattern, $path)) {
+			$mods[$path]=$hash;
+			unset($files[$path]);
+		    }
+		}
+	    }
 	    $this->modifies = $mods;
 	    $this->vars = $vars;
 	}
 	return $res;
     }
 
+    function regIgnore() {
+	$pat = array();
+	foreach ($this->options as $path => $v) {
+	    if (!$v) $pat[] = preg_quote(preg_replace('/\/*$/', '/', $path), '/');
+	}
+	if ($pat) return '/^('.join('|', $pat).')/';
+	return false;
+    }
+
     function modifyFiles() {
 	$mods = array();
 	$files =& $this->files;
+	$pat = $this->regIgnore();
 	foreach ($this->modifies as $path=>$hash) {
+	    if ($pat && preg_match($pat, $path)) continue;
 	    $mods[$path] = ($files[$path]=='delete')?'del':'chg';
 	}
 	ksort($mods);
@@ -358,6 +400,22 @@ class InstallPackage extends Package {
 	$ver = $this->getVar('origin');
 	if (empty($ver)) $ver = $this->getVar('pversion');
 	return parent::getFile($path, $ver);
+    }
+
+    function setOptions($path, $value) {
+	global $xoopsDB;
+	if ($this->options[$path] == $value) return false; // not changed
+	$me = $this->getVar('pkgid');
+	$qpath = $xoopsDB->quoteString($path);
+	$res = $xoopsDB->query("SELECT fileid FROM ".UPDATE_FILE." WHERE path=$qpath AND pkgref=$me");
+	if ($xoopsDB->getRowsNum($res)>0) {
+	    list($fileid) = $xoopsDB->fetchRow($res);
+	    $xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE fileid=".$fileid);
+	} else {
+	    $hash = $value?"'options'":"'no-options'";
+	    $xoopsDB->query("INSERT INTO ".UPDATE_FILE."(pkgref, hash, path) VALUES($me, $hash, $qpath)");
+	}
+	$this->options[$path] = $value;
     }
 
     // return array(filename=>method);

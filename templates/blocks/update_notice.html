@@ -1,0 +1,16 @@
+<{if $block.admin}>
+<{if $block.message}>
+<b style="color:red"><{$block.message}></b>
+<hr/>
+<{foreach item=pkg from=$block.updates}>
+<div><{$pkg.name}> (<{$pkg.date}>)</div>
+<{/foreach}>
+<br/>
+<div style="text-align: right"><a href="<{$xoops_url}>/modules/<{$block.dirname}>/admin/"><{$smarty.const._BL_UPDATE_DOING}></a></div>
+<{else}>
+<{$smarty.const._BL_UPDATE_NONE}>
+<{/if}>
+<{else}>
+<div><a href="http://www.scriptupdate.jp/"><img src="<{$xoops_url}>/modules/update/updateclient.png" alt="ScriptUpdate LLC"/></a></div>
+<div><a href="http://www.scriptupdate.jp/">ScriptUpdate LLC</a></div>
+<{/if}>

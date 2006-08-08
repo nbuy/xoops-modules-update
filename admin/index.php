@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.8 2006/08/05 05:47:20 nobu Exp $
+# $Id: index.php,v 1.9 2006/08/08 06:46:29 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -21,6 +21,8 @@ if (isset($_POST['import'])) {
     redirect_result(reg_set_packages(), 'index.php');
 } elseif(isset($_POST['accept'])) {
     redirect_result(modify_package(), 'index.php');
+} elseif(isset($_POST['optdir'])) {
+    redirect_result(options_setting(), 'index.php');
 } elseif(isset($_POST['clear'])) {
     $pkgid = intval($_POST['pkgid']);
     redirect_result(clear_package($pkgid), 'index.php?op=detail&pkgid='.$pkgid);
@@ -57,6 +59,10 @@ case 'detail':
     $view = isset($_GET['view'])?$_GET['view']:false;
     $new = isset($_GET['new'])?intval($_GET['new']):0;
     detail_package(intval($_GET['pkgid']), $view, $new);
+    break;
+
+case 'opts':			// options select in a package
+    options_form();
     break;
 }
 xoops_cp_footer();
@@ -140,9 +146,9 @@ function check_packages() {
 
 	if ($count) $bg = 'fix';
 
-	echo "<tr class='$bg'><td>".htmlspecialchars($pname).
-	    "</td><td>".htmlspecialchars($pversion).
-	    "</td><td>".$newver.
+	echo "<tr class='$bg'><td><a href='index.php?op=opts&pkgid=$id'>".
+	    htmlspecialchars($pname)."</a></td><td>".
+	    htmlspecialchars($pversion)."</td><td>".$newver.
 	    "</td><td>$newdate</td><td align='right'>".
 	    $count." ($mcount)</td><td>$op</td></tr>\n";
     }
@@ -533,7 +539,7 @@ function import_file() {
     $temp = $_FILES['file']['tmp_name'];
     $dir = XOOPS_UPLOAD_PATH."/update/source";
     if (!is_dir($dir)) {
-	$bdir = basename($dir);
+	$bdir = dirname($dir);
 	if (!is_dir($bdir)) mkdir($bdir);
 	mkdir($dir);
     }
@@ -594,9 +600,47 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
 	$content =& $snoopy->results;
 	if (empty($content) || preg_match('/^\s*</', $content)) return false;
 	$pkg = new Package();
-	$pkg->loadStr($content);
-	$pkg->store();
+	if ($pkg->loadStr($content)) $pkg->store();
+	else return false;
     }
     return $pkg;
+}
+
+function options_form() {
+    $id = intval($_GET['pkgid']);
+    $pkg = new InstallPackage($id);
+    echo "<h2>".sprintf(_AM_OPTS_TITLE, $pkg->getVar('pname'))."</h2>\n";
+    echo "<form method='post'>\n";
+    $dirname = $pkg->getVar('vcheck');
+    if ($dirname) {
+	//echo "<div>"._AM_OPTS_RENAME." <input name='rename' value='$dirname'/></div>\n";
+    }
+    foreach ($pkg->options as $path=>$v) {
+	$ck = $v?" checked":"";
+	$path = htmlspecialchars($path);
+	echo "<div><input type='checkbox' name='optdir[]' value='$path'$ck/> $path</div>\n";
+    }
+    echo "<input type='hidden' name='pkgid' value='$id'/>\n";
+    echo "<input type='submit' value='"._SUBMIT."'/>\n";
+    echo "</form>";
+}
+
+function options_setting() {
+    global $myts;
+    $id = intval($_POST['pkgid']);
+    $pkg = new InstallPackage($id);
+    $dirs = array();
+    foreach ($_POST['optdir'] as $dir) {
+	$dirs[$myts->stripSlashesGPC($dir)]=true;
+    }
+    foreach ($pkg->options as $path=>$v) {
+	if ($v) {
+	    $chg = empty($dirs[$path]);
+	} else {
+	    $chg = isset($dirs[$path]);
+	}
+	if ($chg) $pkg->setOptions($path, !$v);
+    }
+    return true;
 }
 ?>
