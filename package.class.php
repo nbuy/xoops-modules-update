@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.8 2006/08/08 06:46:29 nobu Exp $
+# $Id: package.class.php,v 1.9 2006/08/10 08:45:05 nobu Exp $
 
 // Package class
 // methods:
@@ -174,6 +174,15 @@ class Package {
 	return false;
     }
 
+    function regIgnore() {
+	$pat = array();
+	foreach ($this->options as $path => $v) {
+	    if (!$v) $pat[] = preg_quote(preg_replace('/\/*$/', '/', $path), '/');
+	}
+	if ($pat) return '/^('.join('|', $pat).')/';
+	return false;
+    }
+
     function checkFiles($dest=null) {
 	$updates = array();
 	$nhash = '';
@@ -318,15 +327,6 @@ class InstallPackage extends Package {
 	    $this->vars = $vars;
 	}
 	return $res;
-    }
-
-    function regIgnore() {
-	$pat = array();
-	foreach ($this->options as $path => $v) {
-	    if (!$v) $pat[] = preg_quote(preg_replace('/\/*$/', '/', $path), '/');
-	}
-	if ($pat) return '/^('.join('|', $pat).')/';
-	return false;
     }
 
     function modifyFiles() {

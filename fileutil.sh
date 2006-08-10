@@ -1,11 +1,10 @@
 #!/bin/sh
-# $Id: fileutil.sh,v 1.1 2006/07/19 12:47:48 nobu Exp $
+# $Id: fileutil.sh,v 1.2 2006/08/10 08:45:05 nobu Exp $
 # file operation utility to use via sudo.
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 group=apache
 owner=apache
-virtual=/etc/postfix/virtual
 umask 027
 
 case $# in
