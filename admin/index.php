@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.9 2006/08/08 06:46:29 nobu Exp $
+# $Id: index.php,v 1.10 2006/08/15 03:12:29 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -602,6 +602,11 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
 	$pkg = new Package();
 	if ($pkg->loadStr($content)) $pkg->store();
 	else return false;
+	// cache force expired
+	$cache = XOOPS_CACHE_PATH.'/update'.md5($url);
+	if (file_exists($cache) && ($pkg->getVar('mtime')>filemtime($cache))) {
+	    unlink($cache);
+	}
     }
     return $pkg;
 }
@@ -610,16 +615,27 @@ function options_form() {
     $id = intval($_GET['pkgid']);
     $pkg = new InstallPackage($id);
     echo "<h2>".sprintf(_AM_OPTS_TITLE, $pkg->getVar('pname'))."</h2>\n";
-    echo "<form method='post'>\n";
+    $options = $pkg->options;
+    if (empty($options)) {
+	echo _AM_OPTS_NONE;
+	return;
+    }
+    echo _AM_OPTS_DESC;
+    echo "<form method='post' name='Opts'>\n";
     $dirname = $pkg->getVar('vcheck');
     if ($dirname) {
 	//echo "<div>"._AM_OPTS_RENAME." <input name='rename' value='$dirname'/></div>\n";
     }
-    foreach ($pkg->options as $path=>$v) {
+    $checkall = "<input type='checkbox' id='allconf' name='allconf' onclick='xoopsCheckAll(\"Opts\", \"allconf\")'/>";
+    echo "<table class='outer' border='0' cellspacing='1'>\n";
+    echo "<tr><th align='center'>$checkall</th><th>"._AM_OPTS_PATH."</th></tr>\n";
+    foreach ($options as $path=>$v) {
 	$ck = $v?" checked":"";
 	$path = htmlspecialchars($path);
-	echo "<div><input type='checkbox' name='optdir[]' value='$path'$ck/> $path</div>\n";
+	$bg = $n++%2?"even":"odd";
+	echo "<tr class='$bg'><td align='center'><input type='checkbox' name='optdir[]' value='$path'$ck/></td><td>$path</td></td>\n";
     }
+    echo "</table>\n";
     echo "<input type='hidden' name='pkgid' value='$id'/>\n";
     echo "<input type='submit' value='"._SUBMIT."'/>\n";
     echo "</form>";

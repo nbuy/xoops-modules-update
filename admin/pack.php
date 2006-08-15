@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - get packed file/do update
-# $Id: pack.php,v 1.1 2006/07/19 12:47:49 nobu Exp $
+# $Id: pack.php,v 1.2 2006/08/15 03:12:29 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -14,6 +14,7 @@ $op = isset($_GET['op'])?$_GET['op']:'update';
 $date = formatTimestamp(time(),"Ymd");
 $updatedir = "update-$date";
 $backupdir = "backup-$date";
+ob_start();
 if ($xoopsDB->getRowsNum($res)) {
     while ($data = $xoopsDB->fetchArray($res)) {
 	$pkg = new InstallPackage($data);
@@ -34,6 +35,8 @@ if ($xoopsDB->getRowsNum($res)) {
 	}
     }
 }
+$content = ob_get_contents();
+ob_end_clean();
 
 if ($pkgn==0) {
     xoops_cp_header();
@@ -41,7 +44,14 @@ if ($pkgn==0) {
     echo _AM_NOUPDATE;
     xoops_cp_footer();
     exit;
+} elseif ($content) {
+    xoops_cp_header();
+    echo "<h3>"._AM_UPDATE_PKGS."</h3>\n";
+    echo $content;
+    xoops_cp_footer();
+    exit;
 }
+
 chdir(XOOPS_UPLOAD_PATH."/update/work");
 
 switch ($op) {
@@ -77,7 +87,7 @@ header("Cache-Control: public");
 header("Pragma: public");
 
 while (! feof($fp)) {
-    echo fread($fp, 40960);
+    echo fread($fp, 4096);
 }
 pclose($fp);
 system("rm -rf '$dirname'");

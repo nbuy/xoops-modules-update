@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.9 2006/08/10 08:45:05 nobu Exp $
+# $Id: package.class.php,v 1.10 2006/08/15 03:12:29 nobu Exp $
 
 // Package class
 // methods:
@@ -468,13 +468,20 @@ class InstallPackage extends Package {
 		file_put_contents($file, $dstpkg->getFile($path));
 		break;
 	    case 'patch':
-		file_put_contents($file, $dstpkg->getFile($path));
+		$tag = '/\\$(Id|Date|Author|Revision):?[^\\$]*\\$/';
+		$rep = array('$\\1$','');
+		if (is_binary($path)) break;
+		$diff = $this->dbDiff($path);
+		$text = $dstpkg->getFile($path);
+		if (preg_match($tag, $diff)) {
+		    $text = preg_replace($tag, '$\\1$', $text);
+		}
+		file_put_contents($file, $text);
 		$fp = popen("patch '$file'", "w");
-		fwrite($fp, $this->dbDiff($path));
-		if (pclose($fp)) echo "<div>patch failed: $file</div>";
+		fwrite($fp, $diff);
+		pclose($fp);
 		if (file_exists("$file.orig")) unlink("$file.orig");
-		if (file_exists("$file.rej")) echo "<div>patch failed: $file</div>";
-		    
+		if (file_exists("$file.rej")) echo "<div>patch failed: $path</div>";
 		break;
 	    default:
 		echo "<div>$method: $file<div>\n";
