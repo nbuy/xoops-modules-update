@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.8 2006/08/15 03:12:29 nobu Exp $
+# $Id: admin.php,v 1.9 2006/08/18 07:42:21 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
@@ -74,12 +74,14 @@ define('_AM_OK',  '良好');
 define('_AM_CHG', '変更');
 define('_AM_DEL', '削除');
 define('_AM_NEW', '新規');
+define('_AM_EXTRA', '余分');
 
 define('_AM_FILE',  'ファイル');
 define('_AM_BYTES',  'バイト');
 define('_AM_DETAIL', '詳細');
 define('_AM_MODIFY', '調整');
 define('_AM_CHANGES', '変更数');
+define('_AM_MODIFYS', '調整済');
 define('_AM_HAS_CHANGE', '導入ファイルに変更があります');
 define('_AM_NODATA', 'データがありません');
 define('_AM_FILE_ALL', 'ファイル総数');

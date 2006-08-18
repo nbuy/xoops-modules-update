@@ -1,5 +1,5 @@
 <?php
-# $Id: modinfo.php,v 1.5 2006/08/08 06:46:29 nobu Exp $
+# $Id: modinfo.php,v 1.6 2006/08/18 07:42:21 nobu Exp $
 define('_MI_UPDATE_NAME', 'XOOPSアップデート');
 define('_MI_UPDATE_DESC', 'XOOPSおよびモジュールの更新支援を行う');
 
@@ -20,6 +20,8 @@ define('_MI_UPDATE_METHOD_DESC', '更新に矛盾が検出された場合の取り扱い方法を指定
 define('_MI_UPDATE_METHOD_SKIP', '旧ファイルを残す');
 define('_MI_UPDATE_METHOD_REPLACE', '新ファイルで上書きする');
 define('_MI_UPDATE_METHOD_PATCH', '強制的に更新を適用する');
+define('_MI_UPDATE_CHECKEXTRA', '余分な追加ファイルを表示する');
+define('_MI_UPDATE_CHECKEXTRA_DESC', '配布ファイルが置かれるフォルダに、余分なファイルが置かれていたら詳細画面で表示する');
 
 # Blocks
 define('_MI_UPDATE_NOTICE', 'アップデート通知');

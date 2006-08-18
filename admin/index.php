@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.10 2006/08/15 03:12:29 nobu Exp $
+# $Id: index.php,v 1.11 2006/08/18 07:42:21 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -10,7 +10,8 @@ $myts =& MyTextSanitizer::getInstance();
 
 $op = isset($_GET['op'])?$_GET['op']:'';
 $file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG,
-		    'new'=>_AM_NEW, 'ok'=>_AM_OK);
+		    'new'=>_AM_NEW, 'ok'=>_AM_OK,
+		    'extra'=>_AM_EXTRA);
 define('ROLLBACK', XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz");
 
 if (isset($_POST['import'])) {
@@ -80,7 +81,7 @@ function check_packages() {
 
     echo "<h3>"._AM_CHECK_LIST."</h3>\n";
     echo "<table cellspacing='1' class='outer'>\n";
-    echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>"._AM_PKG_NEW."</th><th>"._AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th></th></tr>\n";
+    echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>"._AM_PKG_NEW."</th><th>"._AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th>"._AM_MODIFYS."</th><th></th></tr>\n";
     $n = 0;
     $update = false;	// find update package?
     $modify = false;
@@ -149,8 +150,7 @@ function check_packages() {
 	echo "<tr class='$bg'><td><a href='index.php?op=opts&pkgid=$id'>".
 	    htmlspecialchars($pname)."</a></td><td>".
 	    htmlspecialchars($pversion)."</td><td>".$newver.
-	    "</td><td>$newdate</td><td align='right'>".
-	    $count." ($mcount)</td><td>$op</td></tr>\n";
+	    "</td><td>$newdate</td><td align='right'>$count</td><td align='right'>$mcount</td><td>$op</td></tr>\n";
     }
     echo "</table>\n";
     if ($update && !$modify) {
@@ -273,7 +273,7 @@ function clear_package($pid) {
 }
 
 function detail_package($pid, $vmode=false, $new=0) {
-    global $file_state;
+    global $file_state, $xoopsModuleConfig;
     $pkg = new InstallPackage($pid);
     $title = $pkg->getVar('name');
     if ($new) {
@@ -283,8 +283,13 @@ function detail_package($pid, $vmode=false, $new=0) {
 	$id = $new;
 	//$files = $pkg->checkPackage($newpkg);
     } else {
-	if ($vmode) $files = $pkg->modifyFiles();
-	else $files = $pkg->checkFiles();
+	if ($vmode) {
+	    $files = $pkg->modifyFiles();
+	    if ($xoopsModuleConfig['check_extra']) {
+		$files = array_merge($files, $pkg->checkExtra());
+		ksort($files);
+	    }
+	} else $files = $pkg->checkFiles();
 	$id = $pid;
     }
     if (count($files)==0) {
@@ -336,7 +341,8 @@ function detail_package($pid, $vmode=false, $new=0) {
 
 	if ($vmode) {
 	    $diff = $pkg->dbDiff($file);
-	    if (empty($diff)) {
+	    if ($stat == 'extra') {
+	    } elseif (empty($diff)) {
 		$stat = 'same';
 		$adiff = ($new)?$newpkg->getDiff($file):"";
 		if (empty($adiff)) $file .= " =";

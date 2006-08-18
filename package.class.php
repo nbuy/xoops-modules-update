@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.10 2006/08/15 03:12:29 nobu Exp $
+# $Id: package.class.php,v 1.11 2006/08/18 07:42:21 nobu Exp $
 
 // Package class
 // methods:
@@ -196,6 +196,48 @@ class Package {
 	    if ($stat = $this->checkFile($file, $nhash)) {
 		$updates[$file] = $stat;
 	    }
+	}
+	return $updates;
+    }
+
+    function checkExtra() {
+	$updates = array();
+	$pat = $this->regIgnore();
+	$dirs = array();
+	$files = &$this->files;
+	foreach ($files as $file => $hash) {
+	    $base = dirname($file).'/';
+	    if ($pat && preg_match($pat, $file, $d)) {
+		$base = $d[1];
+		if (empty($updates[$base])
+		    && file_exists(XOOPS_ROOT_PATH."/$base")) {
+		    $updates[$base] = "extra";
+		}
+		continue;
+	    }
+	    if (empty($dirs[$base])) $dirs[$base] = true;
+	    if ($this->getHash($file) == 'del' && file_exists(XOOPS_ROOT_PATH."/$file")) {
+		$updates[$file] = 'extra';
+	    }
+	}
+	foreach (array_keys($dirs) as $dir) {
+	    if ($dir == './') $dir = "";
+	    $dh = opendir(XOOPS_ROOT_PATH."/$dir");
+	    while ($fname = readdir($dh)) {
+		if ($fname == '.' || $fname == '..') continue;
+		$path = $dir.$fname;
+		if (is_dir(XOOPS_ROOT_PATH."/$path")) $path .= '/';
+		if (defined('XOOPS_VERSION')) {
+		    if (preg_match('/^(templates_c|cache|uploads)\/|.~$/', $path)) continue;
+		    if (preg_match('/^modules\/.*\/$/', $path)) {
+			$mod = $dir.$fname;
+			if (!isset($this->options[$mod])||$this->options[$mod]) continue;
+		    }
+		}
+		if (isset($files[$path]) || isset($dirs[$path])) continue;
+		$updates[$path] = "extra";
+	    }
+	    closedir($dh);
 	}
 	return $updates;
     }

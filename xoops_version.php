@@ -1,10 +1,10 @@
 <?php
 # XoopsUpdate - Client Module
-# $Id: xoops_version.php,v 1.10 2006/08/15 03:12:29 nobu Exp $
+# $Id: xoops_version.php,v 1.11 2006/08/18 07:42:21 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.73,
+	    'version' => 0.74,
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 Script Update LLC.",
@@ -66,4 +66,12 @@ $modversion['config'][]=array(
     'options' => array(_MI_UPDATE_METHOD_SKIP=>'skip',
 		       _MI_UPDATE_METHOD_REPLACE=>'replace',
 		       _MI_UPDATE_METHOD_PATCH=>'patch'));
+
+$modversion['config'][]=array(
+    'name' => 'check_extra',
+    'title' => '_MI_UPDATE_CHECKEXTRA',
+    'description' => '_MI_UPDATE_CHECKEXTRA_DESC',
+    'formtype' => 'yesno',
+    'valuetype' => 'int',
+    'default' => 1);
 ?>
