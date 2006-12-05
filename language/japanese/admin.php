@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.9 2006/08/18 07:42:21 nobu Exp $
+# $Id: admin.php,v 1.10 2006/12/05 03:15:52 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
@@ -30,7 +30,8 @@ define('_AM_OPTS_PATH', 'パス名');
 define('_AM_PKG_FILEIMPORT', 'パッケージの登録');
 
 // 
-define('_AM_REG_PACKAGES', '更新パッケージを登録');
+define('_AM_REG_PACKAGES', '更新情報の登録');
+define('_AM_REG_DETAIL', '更新情報の登録');
 define('_AM_REG_SUBMIT', '登録する');
 define('_AM_REG_DESCRIPTION', '更新検査を実施するパッケージをチェック (選択) して、「'._AM_REG_SUBMIT.'」ボタンで登録してください。チェックを外すと、登録を解除します。なお、パッケージ情報が登録されていないモジュールは選択できないようになっています。');
 
@@ -44,15 +45,18 @@ define('_AM_AUTH_SESSION_OK', 'サーバー認証は正常です (設定の必要はありません)')
 define('_AM_AUTH_SESSION_NG', 'サーバー認証に失敗しました');
 
 define('_AM_PKG_GETLISTFAIL', 'パッケージ一覧の取得ができません');
-define('_AM_PKG_PNAME', 'パッケージ名称');
+define('_AM_PKG_PNAME', '検査情報名称');
+define('_AM_PKG_CURRENT_PNAME', '設定(推奨)名');
 define('_AM_PKG_NAME', '名称');
 define('_AM_PKG_CURRENT', '導入版');
 define('_AM_PKG_NEW', '最新版');
 define('_AM_PKG_DTIME', '配布日時');
 define('_AM_PKG_CTIME', '登録日時');
 define('_AM_PKG_VERSION', '版');
+define('_AM_PKG_DIRNAME', 'フォルダ');
 define('_AM_PKG_SOURCE', 'ソース');
-define('_AM_PKG_REGISTER', '更新パッケージを登録してください');
+define('_AM_PKG_REGISTER', '更新情報を登録してください');
+define('_AM_PKG_NOCURRENT', '更新情報名が検出できません');
 
 define('_AM_REGIST_LIST', '登録済みパッケージ');
 define('_AM_REGIST_SUBMIT', '変更ファイルを登録する');

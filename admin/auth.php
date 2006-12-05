@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: auth.php,v 1.1 2006/07/19 12:47:48 nobu Exp $
+# $Id: auth.php,v 1.2 2006/12/05 03:15:51 nobu Exp $
 
 include '../../../include/cp_header.php';
 include '../functions.php';
@@ -9,8 +9,9 @@ $myts =& MyTextSanitizer::getInstance();
 
 if (isset($_POST['pass'])) {
     $pass = $xoopsDB->quoteString($myts->stripSlashesGPC($_POST['pass']));
-    $res = $xoopsDB->query("UPDATE ".FTBL." SET hash=$pass WHERE pkgref=0 AND path=''");
-    redirect_header('index.php', 1, _AM_DBUPDATED);
+    $res = $xoopsDB->query("UPDATE ".UPDATE_FILE." SET hash=$pass WHERE pkgref=0 AND path=''");
+    package_expire();
+    redirect_header('auth.php', 1, _AM_DBUPDATED);
     exit;
 }
 
@@ -31,11 +32,9 @@ if (preg_match('/^\w+:/', $server)) {
 $pass = htmlspecialchars(isset($_GET['pass'])?$myts->stripSlashesGPC($_GET['pass']):'');
 $domain = preg_replace('/\/*/i','',preg_replace('/^https?:\/\//i','',XOOPS_URL));
 
+$res = $xoopsDB->query("SELECT fileid FROM ".UPDATE_FILE." WHERE pkgref=0 AND path=''");
 if ($xoopsDB->getRowsNum($res)==0) {
-    $xoopsDB->queryF("INSERT INTO ".FTBL."(pkgref, path) VALUES (0, '')");
-    $hash = '';
-} else {
-    list($hash) = $xoopsDB->fetchRow($res);
+    $xoopsDB->queryF("INSERT INTO ".UPDATE_FILE."(pkgref, path) VALUES (0, '')");
 }
 
 echo "<form action='auth.php' method='POST'>

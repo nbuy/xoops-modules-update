@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.11 2006/08/18 07:42:21 nobu Exp $
+# $Id: package.class.php,v 1.12 2006/12/05 03:15:51 nobu Exp $
 
 // Package class
 // methods:
@@ -10,10 +10,6 @@
   // ->store()                store instance in database (result store id)
 
 include_once "functions.php";
-
-define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
-define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
-define('UPDATE_DIFF', $xoopsDB->prefix('update_diff'));
 
 function is_binary($file) {
     return preg_match('/\.(png|gif|jpe?g|swf|ico|zip|gz|tar)$/i', $file);
@@ -298,7 +294,7 @@ class Package {
 	return null;
     }
 
-    function getDiff($path) {
+    function getDiff($path, $target="") {
 	if ($this->files[$path]=='delete') return '';
 	//if (!isset($this->modifies[$path])) return '';
 	$ver = $this->getVar('origin');
@@ -308,7 +304,7 @@ class Package {
 	if (is_binary($path)) return 'file is binary';
 	if (file_exists($file)) $src = file_get_contents($file);
 	else $src = $this->getFile($path);
-	$orig = XOOPS_ROOT_PATH."/$path";
+	$orig = $target?$target:XOOPS_ROOT_PATH.'/'.$path;
 	
 	$dest = file_exists($orig)?file_get_contents($orig):'';
 	$tag = array('/\\$(Id|Date|Author|Revision):[^\\$]*\\$/', '/\r/');
@@ -319,6 +315,7 @@ class Package {
 
 class InstallPackage extends Package {
     var $modifies = array();	// modification files info
+    var $dirname = '';
 
     function InstallPackage($id=0) {
 	if (is_array($id)) $this->vars=$id;
@@ -339,6 +336,7 @@ class InstallPackage extends Package {
 	    // get parent information
 	    $pid = $vars['parent'];
 	    if ($pid && !parent::load($pid)) return false;
+	    $this->dirname = $this->getVar('vcheck');
 	    $res = $xoopsDB->query("SELECT hash, path FROM ".UPDATE_FILE." WHERE pkgref=".$id);
 	    // override modify information
 	    $files =& $this->files;
@@ -367,6 +365,7 @@ class InstallPackage extends Package {
 	    }
 	    $this->modifies = $mods;
 	    $this->vars = $vars;
+	    if ($this->dirname == $vars['vcheck']) $this->dirname = '';
 	}
 	return $res;
     }
@@ -385,7 +384,7 @@ class InstallPackage extends Package {
 
     function setModify($path) {
 	global $xoopsDB;
-	$file = XOOPS_ROOT_PATH.'/'.$path;
+	$file = $this->getRealPath($path);
 	$id = $this->getVar('pkgid');
 	if (empty($id)) die('pkgid='.$id);
 	$md5 = file_exists($file)?md5_file($file):'delete';
@@ -501,7 +500,7 @@ class InstallPackage extends Package {
     function updatePackage($dstpkg, $dir="new") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
-	    $file = "$work/$path";
+	    $file = "$work/".$this->getRealPath($path);
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    switch ($method) {
@@ -540,12 +539,41 @@ class InstallPackage extends Package {
 	    $file = "$work/$path";
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
-	    $src = XOOPS_ROOT_PATH."/$path";
+	    $src = $this->getRealPath($path);
 	    if (file_exists($src) && !link($src, $file)) {
 		if (!copy($src, $file)) echo "<div>copy fail: $file<div>\n";
 	    }
 	}
 	return true;
+    }
+
+    function getRealPath($path, $abs=true) {
+	if ($this->dirname) {
+	    $file = preg_replace('/^'.preg_quote("modules/".$this->dirname.'/', '/').'/', 'modules/'.$this->getVar('vcheck').'/', $path);
+	} else {
+	    $file = $path;
+	}
+	return $abs?XOOPS_ROOT_PATH."/".$file:$file;
+    }
+
+    function checkFile($path, $nhash='') {
+	$file = $this->getRealPath($path);
+	$hash = $this->getHash($path);
+	if (!file_exists($file)) {
+	    if ($nhash) {
+		if ($hash == 'delete') return 'del';
+		else return 'new';
+	    } elseif ($hash != 'delete') return 'del';
+	} else {
+	    $chash = md5_file($file);
+	    if ($nhash && $nhash!=$hash) return 'chg';
+	    if ($chash!=$hash) return 'chg';
+	}
+	return false;
+    }
+
+    function getDiff($path) {
+	return parent::getDiff($path, $this->getRealPath($path));
     }
 }
 
@@ -559,7 +587,7 @@ function mkdir_p($path) {
 
 function count_modify_files($pkgid) {
     global $xoopsDB;
-    $res = $xoopsDB->query("SELECT count(fileid) FROM ".UPDATE_FILE." WHERE pkgref=$pkgid");
+    $res = $xoopsDB->query("SELECT count(fileid) FROM ".UPDATE_FILE." WHERE pkgref=$pkgid AND NOT (hash LIKE '%options')");
     list($ret) = $xoopsDB->fetchRow($res);
     return $ret;
 }
@@ -586,91 +614,157 @@ function get_current_version($pname, $vcheck) {
 	if (file_exists($lang)) include_once $lang;
 	else include_once $modpath."/language/english/modinfo.php";
 	include $vfile;
-	return $modversion['version'];
+	return round($modversion['version'], 2);
     }
     return false;
 }
 
-function get_local_packages($pname='') {
-    global $xoopsDB;
-    
-    $cond = "pversion<>'HEAD'";
-    $idx=empty($pname);
-    $cond .= $pname?" AND pname=".$xoopsDB->quoteString($pname):"";
-    $res = $xoopsDB->query("SELECT pname, pversion, dtime, vcheck, name FROM ".
-	UPDATE_PKG." WHERE $cond ORDER BY pname,dtime DESC");
-    $pre = "";
-    $pkgs = array();
-    while ($data = $xoopsDB->fetchArray($res)) {
-	if ($pname || $data['pname'] != $pre) {
-	    $pre = $data['pname'];
-	    $pkg = array('pname'=>$pre,
-			 'pversion'=>$data['pversion'],
-			 'dtime'=>$data['dtime'],
-			 'vcheck'=>$data['vcheck'],
-			 'name'=>$data['name']);
-	    if ($idx) $pkgs[$pre] = $pkg;
-	    else $pkgs[] = $pkg;
+class PackageList {
+    var $pkgs = array();
+
+    function PackageList() {
+	global $xoopsDB;
+	$xoops = array('contact', 'mydownloads', 'mylinks', 'newbb', 'news',
+		       'sections', 'system', 'xoopsfaq', 'xoopsheadline',
+		       'xoopsmembers', 'xoopspartners', 'xoopspoll');
+	$res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." WHERE isactive ORDER BY dirname");
+	$pkgs =& $this->pkgs;
+	$pkgs[''] = array();	// XOOPS core slot
+	while (list($dirname) = $xoopsDB->fetchRow($res)) {
+	    if (in_array($dirname, $xoops)) continue;
+	    $pkgs[$dirname]=array();
 	}
     }
-    return $pkgs;
-}
 
-function get_install_packages() {
-    global $xoopsDB;
-    $xoops = array('contact', 'mydownloads', 'mylinks', 'newbb', 'news',
-		   'sections', 'system', 'xoopsfaq', 'xoopsheadline',
-		   'xoopsmembers', 'xoopspartners', 'xoopspoll');
-    $res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." WHERE isactive");
-    $xver = preg_match('/XOOPS.* JP$/', XOOPS_VERSION)?'XOOPS2-JP':'XOOPS2';
-    $pkgs = array($xver);
-    while (list($dirname) = $xoopsDB->fetchRow($res)) {
-	if (in_array($dirname, $xoops)) continue;
-	$pkgs[]=$dirname;
+    function load() {
+	$this->addServerList();
+	$this->addLocalList();
     }
-    return $pkgs;
-}
 
-function get_packages($pname='all', $idx=false) {
-    $server = get_update_server();
-    $pkgs = array();
-    $inst = get_install_packages();
-    if (empty($server)) {
-	$pkgs = get_local_packages();
-    } else {
+    function getVar($dirname) {
+	if (isset($this->pkgs[$dirname])) {
+	    $apkg =& $this->pkgs[$dirname];
+	    if (count($apkg)) return $apkg[0];
+	}
+	return false;
+    }
+
+    function getAllPackages() {
+	$lists = array();
+	foreach ($this->pkgs as $pkg) {
+	    if (count($pkg)) {
+		$apkg = $pkg[0];
+		if (empty($apkg['dirname'])) {
+		    $apkg['dirname'] = $apkg['vcheck'];
+		}
+		$lists[$apkg['pname']] = $apkg;
+	    }
+	}
+	return $lists;
+    }
+
+    function addServerList($pname='all') {
+	$server = get_update_server();
+	if (empty($server)) return;
 	$url = $server."list.php?pkg=$pname";
 	$list = file_get_url($url);
+	$pkgs =& $this->pkgs;
 	foreach (preg_split('/\n/', $list) as $ln) {
 	    $ln = trim($ln);
 	    if (empty($ln)) continue;
 	    $F = preg_split('/,/', trim($ln), 5);
-	    $pname = $F[0];
-	    $pkg = array('pname'=> $pname,
+	    $dirname = $F[3];
+	    $dstr = $F[2];
+	    $dtime = strtotime($dstr);
+	    if (preg_match('/ ([\+\-])(\d\d)(\d\d)$/', $dstr, $d)) {
+		$zone=($d[1]."1")*($d[2]*3600+$d[3]*60);
+		$dtime -= $zone;
+	    }
+	    $pkg = array('pname'=> $F[0],
 			 'pversion'=> $F[1],
-			 'dtime'=> strtotime($F[2]),
-			 'vcheck'=> $F[3],
+			 'dtime'=> $dtime,
+			 'vcheck'=> $dirname,
 			 'name'=> $F[4]);
-	    if ($idx) $pkgs[$pname] = $pkg;
-	    else $pkgs[] = $pkg;
-	    $found = array_search($pname, $inst);
-	    if ($found!==false) unset($inst[$found]);
-	}
-	$pkg = array('pname'=> '',
-		     'pversion'=> '',
-		     'dtime'=> 0,
-		     'vcheck'=>'modules',
-		     'name'=>'');
-	$module_handler =& xoops_gethandler('module');
-	foreach ($inst as $name) {
-	    $module =& $module_handler->getByDirname($name);
-	    if (empty($module)) continue;
-	    $pkg['name'] = $module->getVar('name')." ".$module->getVar('version')*0.01;
-	    $pkg['pname'] = $name;
-	    if ($idx && empty($pkgs[$name])) $pkgs[$name] = $pkg;
-	    else $pkgs[] = $pkg;
+	    if (isset($pkgs[$dirname])) {
+		$pkgs[$dirname][] = $pkg;
+	    }
 	}
     }
-    return $pkgs;
+
+    function addLocalList() {
+	global $xoopsDB;
+	$res = $xoopsDB->query("SELECT h.pkgid, h.pname,p.pversion,p.dtime,h.vcheck,p.name,p.vcheck dirname
+FROM ".UPDATE_PKG." h LEFT JOIN ".UPDATE_PKG." p ON h.parent=p.pkgid 
+WHERE h.pversion='HEAD' ORDER BY pname,dtime DESC");
+	echo $xoopsDB->error();
+	$dirname = "/";
+	$pkgs =& $this->pkgs;
+	while ($pkg = $xoopsDB->fetchArray($res)) {
+	    if ($pkg['pname'] != $dirname) {
+		$dirname = $pkg['vcheck'];
+		if (isset($pkgs[$dirname])) {
+		    $found = false;
+		    foreach ($pkgs[$dirname] as $k=>$pre) {
+			if ($pre['pname'] == $pkg['pname']) {
+			    if ($pre['pversion']==$pkg['pversion'] || empty($pkg['pversion'])) {
+				$pkgs[$dirname][$k]['pkgid']=$pkg['pkgid'];
+			    }
+			    if ($pre['dtime']>=$pkg['dtime']) {
+				$found = true;
+				break;
+			    }
+			}
+		    }
+		    if (!$found) $pkgs[$dirname][] = $pkg;
+		}
+	    }
+	}
+    }
+
+    function selectPackage($dirname) {
+	global $xoopsDB;
+	$file = XOOPS_ROOT_PATH."/modules/$dirname/xoops_version.php";
+	if (!file_exists($file)) return false;
+	$hash=md5_file($file);
+	$res=$xoopsDB->query("SELECT pkgid,pname,pversion,dtime,name
+FROM ".UPDATE_FILE.",".UPDATE_PKG." p WHERE pkgref=pkgid
+  AND path LIKE '%/xoops_version.php' AND hash=".$xoopsDB->quoteString($hash));
+	if ($xoopsDB->getRowsNum($res)) {
+	    $pkg = $xoopsDB->fetchArray($res);
+	    $pkg['vcheck'] = $dirname;
+	    return $pkg;
+	}
+	return false;
+    }
+}
+
+function get_packages($pname='all', $local=true) {
+    $pkgs = new PackageList;
+    $pkgs->load();
+    $lists = array();
+    foreach ($pkgs->pkgs as $dir => $pkg) {
+	if (count($pkg)) {
+	    $lists[$dir]=$pkg[0];
+	}
+    }
+    if (!$local) return $lists;
+    $module_handler =& xoops_gethandler('module');
+    foreach ($pkgs->pkgs as $dir => $pkg) {
+	if (count($pkg)==0) {
+	    $ppkg = $pkgs->selectPackage($dir);
+	    if ($ppkg) {
+		unset($ppkg['pkgid']);
+		$lists[$dir] = $ppkg;
+	    } else {
+		$module =& $module_handler->getByDirname($dir);
+		$ver = $module->getVar('version')*0.01;
+		$lists[$dir]=array(
+		    'name'=>$module->getVar('name')." ".$ver, 'pname'=> $dir,
+		    'pversion'=> '', 'dtime'=> 0, 'vcheck'=>$dir);
+	    }
+	}
+    }
+    return $lists;
 }
 
 function get_update_server() {
@@ -697,12 +791,6 @@ function mysystem($cmd) {
     }
     pclose($fp);
     return $result;
-}
-
-function package_expire($pname='') {
-    global $xoopsDB;
-    if ($pname) $pname = " AND pname='$pname'";
-    $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pversion='HEAD'".$pname);
 }
 
 function temp_put_contents($str) {

@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.11 2006/08/18 07:42:21 nobu Exp $
+# $Id: index.php,v 1.12 2006/12/05 03:15:51 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -12,14 +12,11 @@ $op = isset($_GET['op'])?$_GET['op']:'';
 $file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG,
 		    'new'=>_AM_NEW, 'ok'=>_AM_OK,
 		    'extra'=>_AM_EXTRA);
-define('ROLLBACK', XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz");
 
 if (isset($_POST['import'])) {
     redirect_result(import_file(), 'index.php?op=pkgs', _AM_NODATAINFILE);
 } elseif(isset($_POST['pkgdel'])) {
     redirect_result(delete_package(), 'index.php?op=pkgs');
-} elseif(isset($_POST['regpkg'])) {
-    redirect_result(reg_set_packages(), 'index.php');
 } elseif(isset($_POST['accept'])) {
     redirect_result(modify_package(), 'index.php');
 } elseif(isset($_POST['optdir'])) {
@@ -31,16 +28,20 @@ if (isset($_POST['import'])) {
     redirect_result(rollback_update(), 'index.php');
 }
 
+// number of checking packages
+$res = $xoopsDB->query("SELECT count(pkgid) FROM ".UPDATE_PKG." WHERE pversion='HEAD'");
+list($npkg) = $xoopsDB->fetchRow($res);
+if (empty($op) && $npkg==0) {
+    redirect_header('index.php?op=regpkg', 1, _AM_PKG_REGISTER);
+    exit;
+}
+
 xoops_cp_header();
 echo mystyle();
 include 'mymenu.php';
 switch ($op) {
 default:
     check_packages();		// checking regsiterd packages
-    break;
-
-case 'regpkg':			// package managiment
-    reg_packages();		// checking regsiterd packages
     break;
 
 case 'pkgs':			// package managiment
@@ -71,28 +72,34 @@ xoops_cp_footer();
 // bind current installed and HEAD
 function check_packages() {
     global $xoopsDB, $xoopsModuleConfig, $xoopsConfig;
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion='HEAD' ORDER BY pkgid");
-    if (!$res) die($xoopsDB->error());
-    $pkgs = get_packages('all', true);
-    if ($xoopsDB->getRowsNum($res)==0) {
-	redirect_header('index.php?op=regpkg', 1, _AM_PKG_REGISTER);
-	return false;
-    }
-
+    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion='HEAD' ORDER BY vcheck");
+    $pkgs = get_packages('all', false);
     echo "<h3>"._AM_CHECK_LIST."</h3>\n";
     echo "<table cellspacing='1' class='outer'>\n";
-    echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>"._AM_PKG_NEW."</th><th>"._AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th>"._AM_MODIFYS."</th><th></th></tr>\n";
+    echo "<tr><th>"._AM_PKG_PNAME."</th><th>"._AM_PKG_CURRENT."</th><th>".
+	_AM_PKG_DIRNAME."</th><th>"._AM_PKG_NEW."</th><th>".
+	_AM_PKG_DTIME."</th><th>"._AM_CHANGES."</th><th>".
+	_AM_MODIFYS."</th><th></th></tr>\n";
     $n = 0;
     $update = false;	// find update package?
     $modify = false;
     $errors = array();
     while ($data = $xoopsDB->fetchArray($res)) {
 	$pname = $data['pname'];
+	$dirname = $data['vcheck'];
 	$bg = $n++%2?'even':'odd';
 	$id = $data['pkgid'];
-	$newpkg = isset($pkgs[$pname])?$pkgs[$pname]:array();
+	$newpkg = isset($pkgs[$dirname])?$pkgs[$dirname]:array();
+	if (empty($newpkg)) {
+	    foreach ($pkgs as $pkg) { // find by name
+		if ($pname == $pkg['pname']) {
+		    $newpkg = $pkg;
+		    break;
+		}
+	    }
+	}
 	$newver = isset($newpkg['pversion'])?$newpkg['pversion']:'';
-	$curver = get_current_version($pname, $newpkg['vcheck']);
+	$curver = get_current_version($pname, $dirname);
 	if (empty($data['parent']) ||
 	    get_pkg_info($data['parent'], 'pversion')!=$curver) {
 	    $par = import_new_package($pname, $curver);
@@ -125,7 +132,7 @@ function check_packages() {
 	    $count = 0;
 	}
 	if ($count) $modify = true;
-	if (isset($pkgs[$pname])) {
+	if (!empty($newpkg)) {
 	    $newver = $newpkg['pversion'];
 	    $newdate = formatTimestamp($newpkg['dtime'], "m");
 	} else {
@@ -149,7 +156,7 @@ function check_packages() {
 
 	echo "<tr class='$bg'><td><a href='index.php?op=opts&pkgid=$id'>".
 	    htmlspecialchars($pname)."</a></td><td>".
-	    htmlspecialchars($pversion)."</td><td>".$newver.
+	    htmlspecialchars($pversion)."</td><td>$dirname</td><td>".$newver.
 	    "</td><td>$newdate</td><td align='right'>$count</td><td align='right'>$mcount</td><td>$op</td></tr>\n";
     }
     echo "</table>\n";
@@ -173,15 +180,18 @@ function check_packages() {
     $rollback = ROLLBACK;
     if (file_exists($rollback)) {
 	$ctime = filectime($rollback);
-	$tm = _AM_UPDATE_TIME.' '.formatTimestamp($ctime, 'm');
 	$expire = $ctime+$xoopsModuleConfig['cache_time'];
-	$until = _AM_UPDATE_EXPIRE.' '.formatTimestamp($expire, 'H:i');
+	if ($expire > time()) unlink($roolbak);
+	else {
+	    $tm = _AM_UPDATE_TIME.' '.formatTimestamp($ctime, 'm');
+	    $until = _AM_UPDATE_EXPIRE.' '.formatTimestamp($expire, 'H:i');
 	echo "<table cellpadding='5'>
   <tr><td>
     <form action='index.php?op=rollback' method='post'>
     <input type='submit' value='"._AM_UPDATE_ROLLBACK."'></form></td>
     <td>$tm ($until)</td></tr>
 </table>\n";
+	}
     }
     if ($errors) {
 	echo "<br/><div class='errorMsg'>\n";
@@ -190,9 +200,6 @@ function check_packages() {
 	}
 	echo "</div>\n";
     }
-    echo "<hr/>";
-
-    echo "<div><a href='index.php?op=regpkg'>"._AM_REG_PACKAGES."</a></div>";
 }
 
 function delete_package() {
@@ -220,41 +227,6 @@ function delete_package() {
     return true;
 }
 
-function reg_set_packages() {
-    global $xoopsDB;
-    $active = get_active_list();
-    $pkgs = get_packages('all', true);
-    if (file_exists(ROLLBACK)) unlink(ROLLBACK); // expired
-    $ins = "INSERT INTO ".UPDATE_PKG."(pname, pversion, vcheck) VALUES(%s,'HEAD',%s)";
-    $del = "DELETE FROM ".UPDATE_PKG." WHERE pkgid=%u";
-    $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
-    $succ = 0;
-    $pnames = isset($_POST['pname'])?$_POST['pname']:array();
-    foreach ($pkgs as $pkg) {
-	$pname=$pkg['pname'];
-	$qtag = $xoopsDB->quoteString($pname);
-	if (in_array($pname, $pnames)) { // checked
-	    if (!isset($active[$pname])) {	// is change?
-		$qchk = $xoopsDB->quoteString($pkg['vcheck']);
-		if ($xoopsDB->query(sprintf($ins, $qtag, $qchk))) $succ++;
-	    }
-	} else {		// unchecked
-	    if (isset($active[$pname])) {	// is change?
-		$res = $xoopsDB->query(sprintf($sel, $qtag));
-		if ($res && $xoopsDB->getRowsNum($res)) {
-		    list($pkgid) = $xoopsDB->fetchRow($res);
-		    
-		    if ($xoopsDB->query(sprintf($del, $pkgid))) {
-			$xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pkgid");
-			$succ++;
-		    }
-		}
-	    }
-	    //$xoopsDB->query("SELECT pkgref FROM ".UPDATE_DIFF." LEFT JOIN ".UPDATE_FILE." ON fileid=fileref WHERE fileid IS NULL");
-	}
-    }
-    return $succ;
-}
 
 function clear_package($pid) {
     global $xoopsDB;
@@ -267,7 +239,7 @@ function clear_package($pid) {
 	$fids[] = $fid;
     }
     $xoopsDB->query("DELETE FROM ".UPDATE_DIFF." WHERE fileref IN (".join(',',$fids).")");
-    $xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pid");
+    $xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pid AND NOT (hash LIKE '%options')");
     $xoopsDB->query("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pkgid=$pid");
     return true;
 }
@@ -275,7 +247,9 @@ function clear_package($pid) {
 function detail_package($pid, $vmode=false, $new=0) {
     global $file_state, $xoopsModuleConfig;
     $pkg = new InstallPackage($pid);
+    $dirname = $pkg->getVar('vcheck');
     $title = $pkg->getVar('name');
+    if ($dirname) $title .= " ($dirname)";
     if ($new) {
 	$newpkg = new Package($new);
 	$title .= _AM_UPDATE_TO.$newpkg->getVar('name');
@@ -361,8 +335,9 @@ function detail_package($pid, $vmode=false, $new=0) {
 	} else {
 	    $ck = "<td><input type='checkbox' name='conf[]' value='$file'/></td>";
 	}
+	$myfile = $pkg->getRealPath($file, false);
 	echo "<tr class='$bg'>$ck";
-	echo "<td>$slabel</td><td class='$stat'>$file</td></tr>\n";
+	echo "<td>$slabel</td><td class='$stat'>$myfile</td></tr>\n";
     }
     echo "</table>\n";
     if (!$vmode) {
@@ -385,63 +360,6 @@ function modify_package() {
     }
     if ($n && file_exists(ROLLBACK)) unlink(ROLLBACK); // expired
     return $n;
-}
-
-function get_active_list() {
-    global $xoopsDB;
-    $res = $xoopsDB->query("SELECT pname,name FROM ".UPDATE_PKG." WHERE pversion='HEAD'");
-    $active = array();
-    while (list($pname, $name) = $xoopsDB->fetchRow($res)) {
-	$active[$pname] = $name;
-    }
-    return $active;
-}
-
-function reg_packages() {
-    echo "<h3>"._AM_REG_PACKAGES."</h3>\n";
-    echo "<p class='desc'>"._AM_REG_DESCRIPTION."</p>\n";
-    $active = get_active_list();
-    $pkgs = get_packages('all', true);
-    if (count($pkgs)) {
-	$input = "<input type='checkbox' name='pname[]' value='%s'%s/>";
-	echo "<form method='POST' name='PackageSelect'>\n";
-	echo "<table cellspacing='1' class='outer'>\n";
-	$checkall = "<input type='checkbox' id='allpname' name='allpname' onclick='xoopsCheckAll(\"PackageSelect\", \"allpname\")'/>";
-	echo "<tr><th align='center'>$checkall</th><th>"._AM_PKG_PNAME.
-	    "</th><th>"._AM_PKG_VERSION.
-	    "</th><th>"._AM_PKG_NAME.
-	    "</th><th>"._AM_PKG_CTIME.
-	    "</th></tr>\n";
-	$n = 0;
-	foreach ($pkgs as $pkg) {
-	    $pname = $pkg['pname'];
-	    $ck = isset($active[$pname])?" checked='checked'":"";
-	    $ckbox = 
-	    $bg = $n++%2?'even':'odd';
-	    $qname = htmlspecialchars($pname);
-	    if (empty($pkg['pversion'])) {
-		$check = '-';
-		$date = '';
-	    } else {
-		$check = sprintf($input, $qname, $ck);
-		$date = formatTimestamp($pkg['dtime']);
-	    }
-	    echo "<tr class='$bg'><td align='center'>".
-		$check."</td><td>".$qname."</td><td>".
-		htmlspecialchars($pkg['pversion'])."</td><td>".
-		htmlspecialchars($pkg['name'])."</td><td>".
-		$date."</td></tr>\n";
-	}
-	echo "</table>\n";
-	echo "<table cellpadding='5'>
-<tr><td>
- <input name='regpkg' type='submit' value='"._AM_REG_SUBMIT."'/>
-</td></tr>
-</table>\n";
-	echo "</form>\n";
-    } else {
-	echo _AM_PKG_GETLISTFAIL;
-    }
 }
 
 function current_pkgs() {
@@ -578,16 +496,6 @@ function import_package($file) {
     return true;
 }
 
-function redirect_result($ret, $dest='', $err=_AM_DBUPDATE_FAIL) {
-    if (empty($dest)) $dist = isset($_SERVER['HTTP_REFERER'])?$_SERVER['HTTP_REFERER']:'index.php';
-    if ($ret) {
-	redirect_header($dest, 1, _AM_DBUPDATED);
-    } else {
-	redirect_header($dest, 3, $err);
-    }
-    exit;
-}
-
 function import_new_package($pname, $ver) {
     global $xoopsModuleConfig, $xoopsDB;
     $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pname=".
@@ -598,22 +506,13 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
     $server = get_update_server();
     if (empty($server)) return null;
     $url = $server."manifesto.php?pkg=".urlencode($pname)."&v=".urlencode($ver);
-    require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
-    $snoopy = new Snoopy;
-    $snoopy->lastredirectaddr = 1;
-    $pkg = false;
-    if ($snoopy->fetch($url)) {
-	$content =& $snoopy->results;
-	if (empty($content) || preg_match('/^\s*</', $content)) return false;
-	$pkg = new Package();
-	if ($pkg->loadStr($content)) $pkg->store();
-	else return false;
-	// cache force expired
-	$cache = XOOPS_CACHE_PATH.'/update'.md5($url);
-	if (file_exists($cache) && ($pkg->getVar('mtime')>filemtime($cache))) {
-	    unlink($cache);
-	}
-    }
+    $content = file_get_url($url);
+    if (empty($content)) echo "None";
+    if (empty($content)) return false;
+
+    $pkg = new Package();
+    if ($pkg->loadStr($content)) $pkg->store();
+    else return false;
     return $pkg;
 }
 
@@ -655,14 +554,19 @@ function options_setting() {
     foreach ($_POST['optdir'] as $dir) {
 	$dirs[$myts->stripSlashesGPC($dir)]=true;
     }
+    $nchg = 0;
     foreach ($pkg->options as $path=>$v) {
 	if ($v) {
 	    $chg = empty($dirs[$path]);
 	} else {
 	    $chg = isset($dirs[$path]);
 	}
-	if ($chg) $pkg->setOptions($path, !$v);
+	if ($chg) {
+	    $pkg->setOptions($path, !$v);
+	    $nchg++;
+	}
     }
-    return true;
+    if ($nchg) package_expire($pkg->getVar('pname'));
+    return $nchg;
 }
 ?>

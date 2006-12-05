@@ -1,11 +1,12 @@
 <?php
-# $Id: modinfo.php,v 1.6 2006/08/18 07:42:21 nobu Exp $
+# $Id: modinfo.php,v 1.7 2006/12/05 03:15:52 nobu Exp $
 define('_MI_UPDATE_NAME', 'XOOPSアップデート');
 define('_MI_UPDATE_DESC', 'XOOPSおよびモジュールの更新支援を行う');
 
 // admin menus
 define('_MI_UPDATE_ADCHECK', '更新検査');
-define('_MI_UPDATE_ADPKG', 'パッケージ管理');
+define('_MI_UPDATE_REGISTER', '更新登録');
+define('_MI_UPDATE_ADPKG', '更新情報');
 define('_MI_UPDATE_AUTH', 'サーバー認証');
 define('_MI_UPDATE_ABOUT', 'Update について');
 

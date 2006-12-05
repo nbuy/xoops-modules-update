@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: diff.php,v 1.3 2006/07/19 12:47:48 nobu Exp $
+# $Id: diff.php,v 1.4 2006/12/05 03:15:51 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -22,7 +22,7 @@ if ($type == "raw") {
 }
 
 $chg = $pkg->checkFile($file);
-$atitle = htmlspecialchars($pkg->getVar('name').": $file");
+$atitle = htmlspecialchars($pkg->getVar('name').": ".$pkg->getRealPath($file, false));
 
 header("Content-Type: text/html; charset"._CHARSET);
 echo "<!DOCTYPE html PUBLIC '//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>";

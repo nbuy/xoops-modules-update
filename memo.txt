@@ -92,5 +92,5 @@ modules/server/authsvr.php
 
 ■ 名称変更への対応
 
-モジュールの名前変更にどう対応するか。
-
+  vcheck には、dirname を納める。
+  HEAD に、変更後の名前 (導入モジュールのディレクトリ) を格納。
