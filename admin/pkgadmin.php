@@ -1,6 +1,6 @@
 <?php
 # package bind administrator
-# $Id: pkgadmin.php,v 1.1 2006/12/05 03:15:52 nobu Exp $
+# $Id: pkgadmin.php,v 1.2 2006/12/05 05:59:50 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -12,7 +12,9 @@ $op = isset($_GET['op'])?$_GET['op']:'';
 if(isset($_POST['regpkg'])) {
     redirect_result(reg_set_packages(), 'index.php');
 } elseif(isset($_POST['custom'])) {
-    redirect_result(register_detail(), 'index.php');
+    redirect_result(register_detail($myts->stripSlashesGPC($_POST['pname']),
+				    $myts->stripSlashesGPC($_POST['dirname'])),
+		    'pkgadmin.php');
 }
 
 xoops_cp_header();
@@ -33,10 +35,10 @@ xoops_cp_footer();
 
 function get_active_list() {
     global $xoopsDB;
-    $res = $xoopsDB->query("SELECT pkgid, name FROM ".UPDATE_PKG." WHERE pversion='HEAD'");
+    $res = $xoopsDB->query("SELECT pkgid, vcheck FROM ".UPDATE_PKG." WHERE pversion='HEAD'");
     $active = array();
-    while (list($id, $name) = $xoopsDB->fetchRow($res)) {
-	$active[$id] = $name;
+    while (list($id, $dirname) = $xoopsDB->fetchRow($res)) {
+	$active[$id] = $dirname;
     }
     return $active;
 }
@@ -102,7 +104,7 @@ function list_packages() {
 		$date = '';
 	    } else {
 		$ck = "";
-		if (isset($pkg['pkgid']) && isset($active[$pkg['pkgid']])) {
+		if (array_search($pkg['vcheck'], $active)) {
 		    $ck = " checked='checked'";
 		}
 		$dirname = htmlspecialchars($pkg['vcheck']);
@@ -158,29 +160,27 @@ function reg_set_packages() {
 	    } else {
 		$pkg = PackageList::selectPackage($dirname);
 	    }
-	    $qtag = $xoopsDB->quoteString($pkg['pname']);
-	    $qchk = $xoopsDB->quoteString($pkg['vcheck']);
 	    $par = empty($pkg['pkgid'])?0:$pkg['pkgid'];
-	    if ($xoopsDB->query(sprintf($ins, $par, $qtag, $qchk))) $succ++;
+	    if (register_detail($pkg['pname'], $dirname)) $succ++;
 	}
     }
     return $succ;
 }
 
-function register_detail() {
-    global $xoopsDB, $myts;
-    $pname = $myts->stripSlashesGPC($_POST['pname']);
-    $dir = $xoopsDB->quoteString($myts->stripSlashesGPC($_POST['dirname']));
-
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE vcheck=$dir AND pversion='HEAD'");
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE vcheck=$dir AND pversion='HEAD'");
+function register_detail($pname, $dirname) {
+    global $xoopsDB;
+    $qdir = $xoopsDB->quoteString($dirname);
+    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE vcheck=$qdir AND pversion='HEAD'");
     if ($xoopsDB->getRowsNum($res)) { // exist current
 	$pkg = $xoopsDB->fetchArray($res);
 	if ($pkg['pname']==$pname) return false; // unchanged
 	clean_pkginfo($pkg['pkgid']);
     }
     $qname = $xoopsDB->quoteString($pname);
-    return $xoopsDB->query("INSERT INTO ".UPDATE_PKG."(pname,pversion,vcheck) VALUES($qname,'HEAD',$dir)");
+    $par = import_new_package($pname, get_current_version($pname, $dirname));
+    $pid = $par?$par->getVar('pkgid'):0;
+    $name = $xoopsDB->quoteString($par?$par->getVar('name'):'');
+    return $xoopsDB->query("INSERT INTO ".UPDATE_PKG."(pname,pversion,vcheck,parent,name,ctime) VALUES($qname,'HEAD',$qdir,$pid,$name,".time().")");
 }
 
 function clean_pkginfo($pkgid=0) {

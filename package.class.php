@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.12 2006/12/05 03:15:51 nobu Exp $
+# $Id: package.class.php,v 1.13 2006/12/05 05:59:50 nobu Exp $
 
 // Package class
 // methods:
@@ -700,15 +700,13 @@ WHERE h.pversion='HEAD' ORDER BY pname,dtime DESC");
 	$dirname = "/";
 	$pkgs =& $this->pkgs;
 	while ($pkg = $xoopsDB->fetchArray($res)) {
-	    if ($pkg['pname'] != $dirname) {
+	    if ($pkg['vcheck'] != $dirname) {
 		$dirname = $pkg['vcheck'];
 		if (isset($pkgs[$dirname])) {
 		    $found = false;
 		    foreach ($pkgs[$dirname] as $k=>$pre) {
-			if ($pre['pname'] == $pkg['pname']) {
-			    if ($pre['pversion']==$pkg['pversion'] || empty($pkg['pversion'])) {
-				$pkgs[$dirname][$k]['pkgid']=$pkg['pkgid'];
-			    }
+			if (isset($pkg['pkgid'])&&$pre['pname'] == $pkg['pname']) {
+			    $pkgs[$dirname][$k]['pkgid']=$pkg['pkgid'];
 			    if ($pre['dtime']>=$pkg['dtime']) {
 				$found = true;
 				break;
@@ -765,6 +763,26 @@ function get_packages($pname='all', $local=true) {
 	}
     }
     return $lists;
+}
+
+function import_new_package($pname, $ver) {
+    global $xoopsModuleConfig, $xoopsDB;
+    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pname=".
+$xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
+    if ($res && $xoopsDB->getRowsNum($res)>0) {
+	return new Package($xoopsDB->fetchArray($res));
+    }
+    $server = get_update_server();
+    if (empty($server)) return null;
+    $url = $server."manifesto.php?pkg=".urlencode($pname)."&v=".urlencode($ver);
+    $content = file_get_url($url);
+    if (empty($content)) echo "None";
+    if (empty($content)) return false;
+
+    $pkg = new Package();
+    if ($pkg->loadStr($content)) $pkg->store();
+    else return false;
+    return $pkg;
 }
 
 function get_update_server() {

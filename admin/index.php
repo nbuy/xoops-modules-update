@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.12 2006/12/05 03:15:51 nobu Exp $
+# $Id: index.php,v 1.13 2006/12/05 05:59:50 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -494,26 +494,6 @@ function import_package($file) {
     system("tar xfz '$file'");
     import_manifesto($manifesto);
     return true;
-}
-
-function import_new_package($pname, $ver) {
-    global $xoopsModuleConfig, $xoopsDB;
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pname=".
-$xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
-    if ($res && $xoopsDB->getRowsNum($res)>0) {
-	return new Package($xoopsDB->fetchArray($res));
-    }
-    $server = get_update_server();
-    if (empty($server)) return null;
-    $url = $server."manifesto.php?pkg=".urlencode($pname)."&v=".urlencode($ver);
-    $content = file_get_url($url);
-    if (empty($content)) echo "None";
-    if (empty($content)) return false;
-
-    $pkg = new Package();
-    if ($pkg->loadStr($content)) $pkg->store();
-    else return false;
-    return $pkg;
 }
 
 function options_form() {
