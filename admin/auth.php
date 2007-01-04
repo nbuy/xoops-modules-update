@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: auth.php,v 1.2 2006/12/05 03:15:51 nobu Exp $
+# $Id: auth.php,v 1.3 2007/01/04 07:03:05 nobu Exp $
 
 include '../../../include/cp_header.php';
 include '../functions.php';
@@ -20,7 +20,7 @@ include 'mymenu.php';
 echo "<h2>"._AM_AUTH_NEWPASS."</h2>";
 $server = $xoopsModuleConfig['update_server'];
 if (preg_match('/^\w+:/', $server)) {
-    $url = $server.'/modules/server/authme.php?url='.XOOPS_URL;
+    $url = $server.'/modules/server/authme.php?url='.urlencode(XOOPS_URL);
     if (session_auth_server()) {
 	echo "<p style='font-weight: bold;'>"._AM_AUTH_SESSION_OK."</p>";
     } else {

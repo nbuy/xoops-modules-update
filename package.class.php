@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.13 2006/12/05 05:59:50 nobu Exp $
+# $Id: package.class.php,v 1.14 2007/01/04 07:03:05 nobu Exp $
 
 // Package class
 // methods:
@@ -500,7 +500,7 @@ class InstallPackage extends Package {
     function updatePackage($dstpkg, $dir="new") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
-	    $file = "$work/".$this->getRealPath($path);
+	    $file = "$work/".$this->getRealPath($path, false);
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    switch ($method) {
