@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.15 2007/06/20 14:44:59 nobu Exp $
+# $Id: package.class.php,v 1.16 2007/06/20 18:13:55 nobu Exp $
 
 // Package class
 // methods:
@@ -812,7 +812,6 @@ function mysystem($cmd) {
     global $sudouser, $xoopsModule;
     $util = XOOPS_ROOT_PATH.'/modules/'.$xoopsModule->getVar('dirname').'/fileutil.sh';
     if (empty($sudouser)) {
-	$pw = posix_getpwuid(fileowner($util));
 	if (function_exists('posix_getpwuid')) {
 	    $pw = posix_getpwuid(fileowner($util));
 	    $sudouser = $pw['name'];
