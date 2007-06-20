@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.16 2007/06/20 18:13:55 nobu Exp $
+# $Id: package.class.php,v 1.17 2007/06/20 18:44:11 nobu Exp $
 
 // Package class
 // methods:
@@ -519,7 +519,7 @@ class InstallPackage extends Package {
 		    $text = preg_replace($tag, '$\\1$', $text);
 		}
 		file_put_contents($file, $text);
-		$fp = popen("patch '$file'", "w");
+		$fp = popen("patch -l '$file'", "w");
 		fwrite($fp, $diff);
 		pclose($fp);
 		if (file_exists("$file.orig")) unlink("$file.orig");
