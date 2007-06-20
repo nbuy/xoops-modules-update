@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.13 2006/12/05 05:59:50 nobu Exp $
+# $Id: index.php,v 1.14 2007/06/20 14:49:55 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -101,10 +101,10 @@ function check_packages() {
 	$newver = isset($newpkg['pversion'])?$newpkg['pversion']:'';
 	$curver = get_current_version($pname, $dirname);
 	if (empty($data['parent']) ||
-	    get_pkg_info($data['parent'], 'pversion')!=$curver) {
-	    $par = import_new_package($pname, $curver);
+	    !in_array(get_pkg_info($data['parent'], 'pversion'), $curver)) {
+	    $par = import_new_package($pname, $curver[1]);
 	    if (!$par) {
-		$errors[] = "$pname $curver: "._AM_PKG_NOTFOUND;
+		$errors[] = "$pname $curver[1]: "._AM_PKG_NOTFOUND;
 	    } else {
 		$pid = $data['parent'] = $par->getVar('pkgid');
 		$pnm = $data['name'] = $par->getVar('name');
@@ -181,7 +181,7 @@ function check_packages() {
     if (file_exists($rollback)) {
 	$ctime = filectime($rollback);
 	$expire = $ctime+$xoopsModuleConfig['cache_time'];
-	if ($expire > time()) unlink($roolbak);
+	if ($expire > time()) unlink($rollback);
 	else {
 	    $tm = _AM_UPDATE_TIME.' '.formatTimestamp($ctime, 'm');
 	    $until = _AM_UPDATE_EXPIRE.' '.formatTimestamp($expire, 'H:i');
@@ -293,7 +293,7 @@ function detail_package($pid, $vmode=false, $new=0) {
     echo "<table cellspacing='1' class='outer'>\n";
     $checkall = "<input type='checkbox' id='allconf' name='allconf' onclick='xoopsCheckAll(\"FileMark\", \"allconf\")'/>";
     echo "<tr>";
-    if (!$vmode) echo "<th align='center'>$checkall</th>";
+    if (!$vmode) echo "<th align='center' class='ckbox'>$checkall</th>";
     echo "<th>"._AM_STATUS."</th><th>"._AM_FILE."</th></tr>\n";
     $n = 0;
     foreach ($files as $file=>$stat) {
@@ -333,7 +333,7 @@ function detail_package($pid, $vmode=false, $new=0) {
 	    }
 	    $ck = "";
 	} else {
-	    $ck = "<td><input type='checkbox' name='conf[]' value='$file'/></td>";
+	    $ck = "<td class='ckbox'><input type='checkbox' name='conf[]' value='$file'/></td>";
 	}
 	$myfile = $pkg->getRealPath($file, false);
 	echo "<tr class='$bg'>$ck";
@@ -513,12 +513,12 @@ function options_form() {
     }
     $checkall = "<input type='checkbox' id='allconf' name='allconf' onclick='xoopsCheckAll(\"Opts\", \"allconf\")'/>";
     echo "<table class='outer' border='0' cellspacing='1'>\n";
-    echo "<tr><th align='center'>$checkall</th><th>"._AM_OPTS_PATH."</th></tr>\n";
+    echo "<tr><th align='center' class='ckbox'>$checkall</th><th>"._AM_OPTS_PATH."</th></tr>\n";
     foreach ($options as $path=>$v) {
 	$ck = $v?" checked":"";
 	$path = htmlspecialchars($path);
 	$bg = $n++%2?"even":"odd";
-	echo "<tr class='$bg'><td align='center'><input type='checkbox' name='optdir[]' value='$path'$ck/></td><td>$path</td></td>\n";
+	echo "<tr class='$bg'><td align='center' class='ckbox'><input type='checkbox' name='optdir[]' value='$path'$ck/></td><td>$path</td></td>\n";
     }
     echo "</table>\n";
     echo "<input type='hidden' name='pkgid' value='$id'/>\n";
