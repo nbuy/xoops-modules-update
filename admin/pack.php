@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - get packed file/do update
-# $Id: pack.php,v 1.3 2007/01/04 07:03:05 nobu Exp $
+# $Id: pack.php,v 1.4 2007/06/20 15:57:06 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -20,7 +20,7 @@ if ($xoopsDB->getRowsNum($res)) {
 	$pkg = new InstallPackage($data);
 	$pkg->load();
 	$pname = $pkg->getVar('pname');
-	$dir = $pkg->getVar('dirname');
+	$dirname = $pkg->getVar('vcheck');
 	$newpkg = new Package($pname, $pkgs[$dirname]['pversion']);
 	if ($pkg->getVar('parent')!=$newpkg->getVar('pkgid')) {
 	    if ($op == 'exec') {
