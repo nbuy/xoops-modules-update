@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.3 2006/12/05 03:15:51 nobu Exp $
+# $Id: functions.php,v 1.4 2007/06/20 14:42:52 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -64,7 +64,7 @@ function session_auth_server() {
     if (!$res || $xoopsDB->getRowsNum($res)==0) return false;
 
     list($pass,$fid) = $xoopsDB->fetchRow($res);
-    $domain = preg_replace('/\/*/i','',preg_replace('/^https?:\/\//i','',XOOPS_URL));
+    $domain = auth_domain_name();
     require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
     $snoopy = new Snoopy;
     $param=array('domain'=>$domain, 'pass'=>$pass);
@@ -101,5 +101,11 @@ function redirect_result($ret, $dest='', $err=_AM_DBUPDATE_FAIL) {
 	redirect_header($dest, 3, $err);
     }
     exit;
+}
+
+function auth_domain_name($url=XOOPS_URL) {
+    $reg = array('/^https?:\/\//i', '/\/+/');
+    $rep = array('', '/');
+    return preg_replace($reg, $rep, $url);
 }
 ?>
