@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.14 2007/01/04 07:03:05 nobu Exp $
+# $Id: package.class.php,v 1.15 2007/06/20 14:44:59 nobu Exp $
 
 // Package class
 // methods:
@@ -464,6 +464,7 @@ class InstallPackage extends Package {
     function checkUpdates($dstpkg) {
 	global $xoopsModuleConfig;
 	$files = $dstpkg->checkFiles();	// changing file sets
+	if (count($files)==0) return array();
 	foreach ($files as $file=>$stat) {
 	    $method = '';
 	    if (!$this->getHash($file)) $method = 'new';
@@ -602,10 +603,11 @@ function get_pkg_info($pkgid, $name='*') {
 
 function get_current_version($pname, $vcheck) {
     global $xoopsDB, $xoopsConfig;
-    $ver = false;
     switch ($vcheck) {
     case '':
-	return preg_replace(array('/^XOOPS /', '/ /'), array('','-'), XOOPS_VERSION);
+	$v = preg_replace(array('/^\D*/', '/ /'), array('','-'), XOOPS_VERSION);
+	$vv = preg_replace('/^\d+.\d+$/', '\\0.0', $v); // hack for cube
+	return array($vv, $v);
     default:
 	$vfile = XOOPS_ROOT_PATH."/modules/$vcheck/xoops_version.php";
 	if (!file_exists($vfile)) return false;
@@ -614,7 +616,9 @@ function get_current_version($pname, $vcheck) {
 	if (file_exists($lang)) include_once $lang;
 	else include_once $modpath."/language/english/modinfo.php";
 	include $vfile;
-	return round($modversion['version'], 2);
+	$v = $modversion['version'];
+	$vv = sprintf('%.2f', $v); // normalized version
+	return array($vv, $v);
     }
     return false;
 }
@@ -627,7 +631,14 @@ class PackageList {
 	$xoops = array('contact', 'mydownloads', 'mylinks', 'newbb', 'news',
 		       'sections', 'system', 'xoopsfaq', 'xoopsheadline',
 		       'xoopsmembers', 'xoopspartners', 'xoopspoll');
-	$res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." WHERE isactive ORDER BY dirname");
+	if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
+	    $xoops[] = 'legacy';
+	    $xoops[] = 'legacyRender';
+	    $xoops[] = 'pm';
+	    $xoops[] = 'stdCache';
+	    $xoops[] = 'user';
+	}
+	$res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." ORDER BY dirname");
 	$pkgs =& $this->pkgs;
 	$pkgs[''] = array();	// XOOPS core slot
 	while (list($dirname) = $xoopsDB->fetchRow($res)) {
@@ -696,7 +707,6 @@ class PackageList {
 	$res = $xoopsDB->query("SELECT h.pkgid, h.pname,p.pversion,p.dtime,h.vcheck,p.name,p.vcheck dirname
 FROM ".UPDATE_PKG." h LEFT JOIN ".UPDATE_PKG." p ON h.parent=p.pkgid 
 WHERE h.pversion='HEAD' ORDER BY pname,dtime DESC");
-	echo $xoopsDB->error();
 	$dirname = "/";
 	$pkgs =& $this->pkgs;
 	while ($pkg = $xoopsDB->fetchArray($res)) {
@@ -767,6 +777,9 @@ function get_packages($pname='all', $local=true) {
 
 function import_new_package($pname, $ver) {
     global $xoopsModuleConfig, $xoopsDB;
+    if (!is_string($ver)) {
+	$ver = preg_replace('/0$/', '', sprintf("%.2f", $ver));
+    }
     $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pname=".
 $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
     if ($res && $xoopsDB->getRowsNum($res)>0) {
@@ -800,7 +813,12 @@ function mysystem($cmd) {
     $util = XOOPS_ROOT_PATH.'/modules/'.$xoopsModule->getVar('dirname').'/fileutil.sh';
     if (empty($sudouser)) {
 	$pw = posix_getpwuid(fileowner($util));
-	$sudouser = $pw['name'];
+	if (function_exists('posix_getpwuid')) {
+	    $pw = posix_getpwuid(fileowner($util));
+	    $sudouser = $pw['name'];
+	} else {
+	    $sudouser = trim(`ls -l "$util"|awk '{print $3;}'`);
+	}
     }
     $fp = popen("sudo -u '$sudouser' '$util' $cmd", 'r');
     $result = "";
