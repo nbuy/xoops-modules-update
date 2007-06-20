@@ -1,6 +1,6 @@
 <?php
 # package bind administrator
-# $Id: pkgadmin.php,v 1.2 2006/12/05 05:59:50 nobu Exp $
+# $Id: pkgadmin.php,v 1.3 2007/06/20 16:53:25 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -94,12 +94,11 @@ function list_packages() {
 	    "</th><th>"._AM_PKG_CTIME.
 	    "</th><th></th></tr>\n";
 	$n = 0;
-	foreach ($pkgs as $pkg) {
+	foreach ($pkgs as $dirname => $pkg) {
 	    $pname = $pkg['pname'];
 	    $bg = $n++%2?'even':'odd';
 	    $qname = htmlspecialchars($pname);
 	    if (empty($pkg['pversion'])) {
-		$dirname = $qname;
 		$check = '-';
 		$date = '';
 	    } else {
