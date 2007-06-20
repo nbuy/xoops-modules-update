@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: auth.php,v 1.3 2007/01/04 07:03:05 nobu Exp $
+# $Id: auth.php,v 1.4 2007/06/20 15:52:58 nobu Exp $
 
 include '../../../include/cp_header.php';
 include '../functions.php';
@@ -30,7 +30,7 @@ if (preg_match('/^\w+:/', $server)) {
 }
 
 $pass = htmlspecialchars(isset($_GET['pass'])?$myts->stripSlashesGPC($_GET['pass']):'');
-$domain = preg_replace('/\/*/i','',preg_replace('/^https?:\/\//i','',XOOPS_URL));
+$domain = auth_domain_name();
 
 $res = $xoopsDB->query("SELECT fileid FROM ".UPDATE_FILE." WHERE pkgref=0 AND path=''");
 if ($xoopsDB->getRowsNum($res)==0) {
