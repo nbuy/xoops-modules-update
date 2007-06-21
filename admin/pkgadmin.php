@@ -1,6 +1,6 @@
 <?php
 # package bind administrator
-# $Id: pkgadmin.php,v 1.3 2007/06/20 16:53:25 nobu Exp $
+# $Id: pkgadmin.php,v 1.4 2007/06/21 14:13:38 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -51,10 +51,9 @@ function setup_package($dirname) {
     if (empty($pkg)) $pkg = $pkgs->selectPackage($dirname);
     $pname = $pkg?$pkg['pname']:_AM_PKG_NOCURRENT; // current package-name
     if ($dirname) {
-	$module_handler =& xoops_gethandler('module');
-	$module =& $module_handler->getByDirname($dirname);
-	if (empty($module)) return; // illigal dirname?
-	$title = $module->getVar('name')." ($dirname)";
+	$modversion = get_modversion($dirname);
+	if (empty($modversion)) return; // illigal dirname?
+	$title = $modversion['name']." ($dirname)";
     } else {
 	$title = XOOPS_VERSION;
     }
@@ -98,18 +97,13 @@ function list_packages() {
 	    $pname = $pkg['pname'];
 	    $bg = $n++%2?'even':'odd';
 	    $qname = htmlspecialchars($pname);
-	    if (empty($pkg['pversion'])) {
+	    $ck =array_search($pkg['vcheck'], $active)?" checked='checked'":"";
+	    $date = empty($pkg['dtime'])?"":formatTimestamp($pkg['dtime']);
+	    if (empty($pkg['pversion']) && empty($ck)) {
 		$check = '-';
-		$date = '';
 	    } else {
-		$ck = "";
-		if (array_search($pkg['vcheck'], $active)) {
-		    $ck = " checked='checked'";
-		}
-		$dirname = htmlspecialchars($pkg['vcheck']);
-		$id = empty($pkg['pkgid'])?$dirname:$pkg['pkgid'];
+		$id = htmlspecialchars($dirname);
 		$check = sprintf($input, $id, $ck);
-		$date = formatTimestamp($pkg['dtime']);
 	    }
 	    echo "<tr class='$bg'><td align='center'>".
 		$check."</td><td>$qname</td><td>".
@@ -132,17 +126,22 @@ function list_packages() {
 function reg_set_packages() {
     global $xoopsDB;
     $active = get_active_list();
-    $pkgs = get_packages('all', false);
+    $pkgs = get_packages('all');
     if (file_exists(ROLLBACK)) unlink(ROLLBACK); // expired
     $del = "DELETE FROM ".UPDATE_PKG." WHERE pkgid=%u";
-    $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE pname=%s AND pversion='HEAD'";
+    $sel = "SELECT pkgid FROM ".UPDATE_PKG." WHERE vcheck=%s AND pversion='HEAD'";
     $succ = 0;
     $pnames = isset($_POST['pname'])?$_POST['pname']:array();
     foreach ($pkgs as $pkg) {
-	$pname=$pkg['pname'];
-	if (!empty($pkg['pkgid'])) {	// active before
-	    $pkgid = intval($pkg['pkgid']);
-	    if (!in_array($pkgid, $pnames)) { // unchecked? (removed)
+	$dirname = $pkg['vcheck'];
+	if (array_search($dirname, $active)) {
+	    $res = $xoopsDB->query(sprintf($sel, $xoopsDB->quoteString($dirname)));
+	    $pkgid = 0;
+	    if ($xoopsDB->getRowsNum($res) > 0) {
+		list($pkgid) = $xoopsDB->fetchRow($res);
+	    }
+	    $pname=$pkg['pname'];
+	    if ($pkgid && !in_array($dirname, $pnames)) { // unchecked? (removed)
 		if ($xoopsDB->query(sprintf($del, $pkgid))) {
 		    $xoopsDB->query("DELETE FROM ".UPDATE_FILE." WHERE pkgref=$pkgid");
 		    $succ++;
@@ -153,7 +152,7 @@ function reg_set_packages() {
     }
     $ins = "INSERT INTO ".UPDATE_PKG."(parent,pname,pversion,vcheck) VALUES(%u,%s,'HEAD',%s)";
     foreach ($pnames as $dirname) {
-	if (!preg_match('/^\d+$/', $dirname)) {
+	if (!in_array($dirname, $active)) {
 	    if (isset($pkgs[$dirname])) {
 		$pkg = $pkgs[$dirname];
 	    } else {
@@ -176,7 +175,8 @@ function register_detail($pname, $dirname) {
 	clean_pkginfo($pkg['pkgid']);
     }
     $qname = $xoopsDB->quoteString($pname);
-    $par = import_new_package($pname, get_current_version($pname, $dirname));
+    $curver = get_current_version($pname, $dirname);
+    $par = import_new_package($pname, $curver[1]);
     $pid = $par?$par->getVar('pkgid'):0;
     $name = $xoopsDB->quoteString($par?$par->getVar('name'):'');
     return $xoopsDB->query("INSERT INTO ".UPDATE_PKG."(pname,pversion,vcheck,parent,name,ctime) VALUES($qname,'HEAD',$qdir,$pid,$name,".time().")");
