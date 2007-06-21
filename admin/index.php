@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.14 2007/06/20 14:49:55 nobu Exp $
+# $Id: index.php,v 1.15 2007/06/21 14:11:42 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -514,6 +514,7 @@ function options_form() {
     $checkall = "<input type='checkbox' id='allconf' name='allconf' onclick='xoopsCheckAll(\"Opts\", \"allconf\")'/>";
     echo "<table class='outer' border='0' cellspacing='1'>\n";
     echo "<tr><th align='center' class='ckbox'>$checkall</th><th>"._AM_OPTS_PATH."</th></tr>\n";
+    $n = 0;
     foreach ($options as $path=>$v) {
 	$ck = $v?" checked":"";
 	$path = htmlspecialchars($path);
