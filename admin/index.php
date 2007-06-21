@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.15 2007/06/21 14:11:42 nobu Exp $
+# $Id: index.php,v 1.16 2007/06/21 18:46:13 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -14,9 +14,9 @@ $file_state = array('del'=>_AM_DEL, 'chg'=>_AM_CHG,
 		    'extra'=>_AM_EXTRA);
 
 if (isset($_POST['import'])) {
-    redirect_result(import_file(), 'index.php?op=pkgs', _AM_NODATAINFILE);
+    redirect_result(import_file(), 'pkgadmin.php', _AM_NODATAINFILE);
 } elseif(isset($_POST['pkgdel'])) {
-    redirect_result(delete_package(), 'index.php?op=pkgs');
+    redirect_result(delete_package(), 'pkgadmin.php');
 } elseif(isset($_POST['accept'])) {
     redirect_result(modify_package(), 'index.php');
 } elseif(isset($_POST['optdir'])) {
