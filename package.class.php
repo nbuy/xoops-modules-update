@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.18 2007/06/21 14:09:26 nobu Exp $
+# $Id: package.class.php,v 1.19 2007/06/21 18:37:50 nobu Exp $
 
 // Package class
 // methods:
@@ -747,8 +747,24 @@ function get_packages($pname='all', $local=true) {
     $pkgs->load();
     $lists = array();
     foreach ($pkgs->pkgs as $dir => $pkg) {
-	if (count($pkg)) {
-	    $lists[$dir]=$pkg[0];
+	if (empty($dir)) {	// XXX: need consider select method
+	    if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
+		$pname = "cube_legacy";
+	    } elseif (preg_match('/^XOOPS 2\..* JP$/', XOOPS_VERSION)) {
+		$pname = "XOOPS2-JP";
+	    } else {
+		$pname = "XOOPS2";
+	    }
+	    foreach ($pkg as $info) {
+		if ($info['pname']==$pname) {
+		    $lists[$dir]=$info;
+		    break;
+		}
+	    }
+	} else {
+	    if (count($pkg)) {
+		$lists[$dir]=$pkg[0];
+	    }
 	}
     }
     if (!$local) return $lists;
