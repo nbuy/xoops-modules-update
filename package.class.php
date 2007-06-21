@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.17 2007/06/20 18:44:11 nobu Exp $
+# $Id: package.class.php,v 1.18 2007/06/21 14:09:26 nobu Exp $
 
 // Package class
 // methods:
@@ -609,13 +609,8 @@ function get_current_version($pname, $vcheck) {
 	$vv = preg_replace('/^\d+.\d+$/', '\\0.0', $v); // hack for cube
 	return array($vv, $v);
     default:
-	$vfile = XOOPS_ROOT_PATH."/modules/$vcheck/xoops_version.php";
-	if (!file_exists($vfile)) return false;
-	$modpath = dirname($vfile);
-	$lang = $modpath."/language/".$xoopsConfig['language']."/modinfo.php";
-	if (file_exists($lang)) include_once $lang;
-	else include_once $modpath."/language/english/modinfo.php";
-	include $vfile;
+	$modversion = get_modversion($vcheck);
+	if ($modversion==false) return false;
 	$v = $modversion['version'];
 	$vv = sprintf('%.2f', $v); // normalized version
 	return array($vv, $v);
@@ -704,9 +699,8 @@ class PackageList {
 
     function addLocalList() {
 	global $xoopsDB;
-	$res = $xoopsDB->query("SELECT h.pkgid, h.pname,p.pversion,p.dtime,h.vcheck,p.name,p.vcheck dirname
-FROM ".UPDATE_PKG." h LEFT JOIN ".UPDATE_PKG." p ON h.parent=p.pkgid 
-WHERE h.pversion='HEAD' ORDER BY pname,dtime DESC");
+	$res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion<>'HEAD' ORDER BY pname,dtime DESC");
+	echo $xoopsDB->error();
 	$dirname = "/";
 	$pkgs =& $this->pkgs;
 	while ($pkg = $xoopsDB->fetchArray($res)) {
@@ -724,6 +718,8 @@ WHERE h.pversion='HEAD' ORDER BY pname,dtime DESC");
 			}
 		    }
 		    if (!$found) $pkgs[$dirname][] = $pkg;
+		} else {
+		    $pkgs[$dirname] = array($pkg);
 		}
 	    }
 	}
@@ -756,22 +752,36 @@ function get_packages($pname='all', $local=true) {
 	}
     }
     if (!$local) return $lists;
-    $module_handler =& xoops_gethandler('module');
-    foreach ($pkgs->pkgs as $dir => $pkg) {
-	if (count($pkg)==0) {
-	    $ppkg = $pkgs->selectPackage($dir);
-	    if ($ppkg) {
-		unset($ppkg['pkgid']);
-		$lists[$dir] = $ppkg;
-	    } else {
-		$module =& $module_handler->getByDirname($dir);
-		$ver = $module->getVar('version')*0.01;
-		$lists[$dir]=array(
-		    'name'=>$module->getVar('name')." ".$ver, 'pname'=> $dir,
-		    'pversion'=> '', 'dtime'=> 0, 'vcheck'=>$dir);
-	    }
-	}
+    // add inactive modules
+    $base = XOOPS_ROOT_PATH."/modules";
+    $dh = opendir($base);
+    $mlist = array();
+    while ($dir = readdir($dh)) {
+	if ($dir == '.' || $dir == '..' || !is_dir("$base/$dir")) continue;
+	if (isset($lists[$dir])) continue;
+	$modversion = get_modversion($dir);
+	if ($modversion == false) continue;
+	$mlist[$dir]=array(
+		'name'=>$modversion['name']." ".$modversion['version'],
+		'pname'=> $dir,	'pversion'=> '', 'dtime'=> 0, 'vcheck'=>$dir);
     }
+    ksort($mlist);
+    global $xoopsDB;
+    foreach ($mlist as $dir=>$v) {
+	$hash = md5_file(XOOPS_ROOT_PATH."/modules/$dir/xoops_version.php");
+	$res = $xoopsDB->query("SELECT pkgref FROM ".UPDATE_FILE." WHERE hash=".$xoopsDB->quoteString($hash)." AND path LIKE '%/xoops_version.php'");
+	if ($xoopsDB->getRowsNum($res)) { // find package
+	    list($pkgid) = $xoopsDB->fetchRow($res);
+	    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pkgid=$pkgid");
+	    $data = $xoopsDB->fetchArray($res);
+	    if ($data['vcheck']=='') continue; // include base module
+	    $v['pname'] = $data['pname'];
+	    $v['pversion'] = $data['pversion'];
+	}
+	$lists[$dir] = $v;
+    }
+    closedir($dh);
+
     return $lists;
 }
 
@@ -843,5 +853,18 @@ function diff_str($str0, $str1) {
     unlink($tmp0);
     unlink($tmp1);
     return preg_replace('/^[^\n]*\n[^\n]*\n/', '', $diff);
+}
+
+function get_modversion($dirname) {
+    global $xoopsConfig;
+    $modpath = XOOPS_ROOT_PATH."/modules/$dirname";
+    $lang = "$modpath/language/".$xoopsConfig['language']."/modinfo.php";
+    $elang = "$modpath/language/english/modinfo.php";
+    if (file_exists($lang)) include_once $lang;
+    elseif (file_exists($elang)) include_once $elang;
+    $vfile = "$modpath/xoops_version.php";
+    if (!file_exists($vfile)) return false;
+    include $vfile;
+    return $modversion;
 }
 ?>
