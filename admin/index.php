@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.16 2007/06/21 18:46:13 nobu Exp $
+# $Id: index.php,v 1.17 2007/06/21 18:49:19 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -32,7 +32,7 @@ if (isset($_POST['import'])) {
 $res = $xoopsDB->query("SELECT count(pkgid) FROM ".UPDATE_PKG." WHERE pversion='HEAD'");
 list($npkg) = $xoopsDB->fetchRow($res);
 if (empty($op) && $npkg==0) {
-    redirect_header('index.php?op=regpkg', 1, _AM_PKG_REGISTER);
+    redirect_header('pkgadmin.php', 1, _AM_PKG_REGISTER);
     exit;
 }
 
