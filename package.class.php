@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.19 2007/06/21 18:37:50 nobu Exp $
+# $Id: package.class.php,v 1.20 2007/06/23 03:36:30 nobu Exp $
 
 // Package class
 // methods:
@@ -47,7 +47,8 @@ $meta_fileds = array(
     'x-package-version'=>'pversion',
     'x-version-check'=>'vcheck',
     'x-name'=>'name',
-    'x-optional-dir'=>'options');
+    'x-optional-dir'=>'options',
+    'x-alternate-root'=>'altroot');
 
 // package object was keep meta information of fileset:
 //    file consistency, come from, modification, etc.
@@ -63,6 +64,8 @@ class Package {
     var $vars=array();
     var $vdirty=array();
     var $options=array();
+    var $altroot=array();
+    var $checkroot="";
 
     function Package($id=0, $ver='') {
 	if (is_array($id)) $this->vars=$id;
@@ -88,11 +91,23 @@ class Package {
 	$res = $xoopsDB->query("SELECT hash, path FROM ".UPDATE_FILE." WHERE pkgref=".$id);
 	$files =& $this->files;
 	$options =& $this->options;
+	$altroot =& $this->altroot;
 	while (list($hash, $path) = $xoopsDB->fetchRow($res)) {
-	    if ($hash=='options') $options[$path] = true;
-	    elseif ($hash=='no-options') $options[$path] = false;
-	    else $files[$path] = $hash;
+	    switch ($hash) {
+	    case 'options':
+		$options[$path] = true;
+		break;
+	    case 'no-options':
+		$options[$path] = false;
+		break;
+	    case 'altroot':
+		$altroot[] = $path;
+		break;
+	    default:
+		$files[$path] = $hash;
+	    }
 	}
+	$this->init_checkroot();
 	return $res;
     }
 
@@ -101,6 +116,7 @@ class Package {
 	$vars = &$this->vars;
 	$vdirty = &$this->vdirty;
 	$options = &$this->options;
+	$altroot = &$this->altroot;
 	$lines = preg_split('/\n/', $content);
 	while ($ln = array_shift($lines)) {
 	    if (preg_match('/^$/', $ln)) break;
@@ -111,15 +127,21 @@ class Package {
 	    }
 	    if (isset($meta_fileds[$name])) {
 		$fname = $meta_fileds[$name];
-		if ($fname=='options') {
+		switch ($fname) {
+		case 'options':
 		    $path = preg_replace('/^\s*!\s*/', '', $value);
 		    $options[$path] = ($path==$value);
-		} else {
+		    break;
+		case 'altroot':
+		    $altroot[] = trim($value);
+		    break;
+		default:
 		    $vars[$fname] = $value;
 		    if (!in_array($fname, $vdirty)) $vdirty[] = $fname;
 		}
 	    }
 	}
+	$this->init_checkroot();
 	if (empty($vars['pname'])) return false;
 	$files = &$this->files;
 	while ($ln = array_shift($lines)) {
@@ -128,6 +150,12 @@ class Package {
 	    $files[$path] = $hash;
 	}
 	return true;
+    }
+
+    function init_checkroot() {
+	if (count($this->altroot)) {
+	    $this->checkroot = '/^('.join('|', array_map("preg_quote", $this->altroot)).')\//';
+	}
     }
 
     function loadFile($file) {
@@ -155,7 +183,7 @@ class Package {
     }
 
     function checkFile($path, $nhash='') {
-	$file = XOOPS_ROOT_PATH."/".$path;
+	$file = $this->getRealPath($path);
 	$hash = $this->getHash($path);
 	if (!file_exists($file)) {
 	    if ($nhash) {
@@ -256,8 +284,12 @@ class Package {
 	    if (empty($pkgid)) die('Insert');
 	    $sql = "INSERT INTO ".UPDATE_FILE."(pkgref, hash, path)VALUES($pkgid,%s,%s)";
 	    foreach ($this->options as $path=>$val) {
-		$tag = $val?"'options'":"'no-options'";
+		$tag = $xoopsDB->quoteString($val?'options':'no-options');
 		$xoopsDB->queryF(sprintf($sql, $tag, $xoopsDB->quoteString($path)));
+	    }
+	    foreach ($this->altroot as $val) {
+		$tag = $xoopsDB->quoteString('altroot');
+		$xoopsDB->queryF(sprintf($sql, $tag, $xoopsDB->quoteString($val)));
 	    }
 	    foreach ($this->files as $path => $hash) {
 		$xoopsDB->queryF(sprintf($sql, $xoopsDB->quoteString($hash), $xoopsDB->quoteString($path)));
@@ -554,23 +586,15 @@ class InstallPackage extends Package {
 	} else {
 	    $file = $path;
 	}
-	return $abs?XOOPS_ROOT_PATH."/".$file:$file;
-    }
-
-    function checkFile($path, $nhash='') {
-	$file = $this->getRealPath($path);
-	$hash = $this->getHash($path);
-	if (!file_exists($file)) {
-	    if ($nhash) {
-		if ($hash == 'delete') return 'del';
-		else return 'new';
-	    } elseif ($hash != 'delete') return 'del';
+	if (!$abs) return $file;
+	if ($this->checkroot && preg_match($this->checkroot, $path, $d)) {
+	    $def = $d[1];
+	    $root = constant($def);
+	    $file = preg_replace("/^".preg_quote($def)."/", $root, $path);
 	} else {
-	    $chash = md5_file($file);
-	    if ($nhash && $nhash!=$hash) return 'chg';
-	    if ($chash!=$hash) return 'chg';
+	    $file = XOOPS_ROOT_PATH."/".$path;
 	}
-	return false;
+	return $file;
     }
 
     function getDiff($path) {
@@ -650,7 +674,20 @@ class PackageList {
     function getVar($dirname) {
 	if (isset($this->pkgs[$dirname])) {
 	    $apkg =& $this->pkgs[$dirname];
-	    if (count($apkg)) return $apkg[0];
+	    if (count($apkg)) {
+		if ($dirname) return $apkg[0];
+		if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
+		    $pname = "cube_legacy";
+		} elseif (preg_match('/^XOOPS 2\..* JP$/', XOOPS_VERSION)) {
+		    $pname = "XOOPS2-JP";
+		} else {
+		    $pname = "XOOPS2";
+		}
+		foreach ($apkg as $pkg) {
+		    if ($pkg['pname']==$pname) return $pkg;
+		}
+		return $pkg;
+	    }
 	}
 	return false;
     }
@@ -659,11 +696,12 @@ class PackageList {
 	$lists = array();
 	foreach ($this->pkgs as $pkg) {
 	    if (count($pkg)) {
-		$apkg = $pkg[0];
-		if (empty($apkg['dirname'])) {
-		    $apkg['dirname'] = $apkg['vcheck'];
+		foreach($pkg as $apkg) {
+		    if (empty($apkg['dirname'])) {
+			$apkg['dirname'] = $apkg['vcheck'];
+		    }
+		    $lists[$apkg['pname']] = $apkg;
 		}
-		$lists[$apkg['pname']] = $apkg;
 	    }
 	}
 	return $lists;
