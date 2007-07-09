@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.5 2007/07/09 05:00:04 nobu Exp $
+# $Id: functions.php,v 1.6 2007/07/09 08:58:10 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -13,6 +13,26 @@ function get_update_otp() {
     if (!$res || $xoopsDB->getRowsNum($res)==0) return null;
     list($hash) = $xoopsDB->fetchRow($res);
     return $hash;
+}
+
+function clear_get_cache($url="", $expire=0) {
+    if ($url) {
+	$cache = XOOPS_CACHE_PATH.'/update'.md5($url);
+	if (file_exists($cache)&&(time()-filemtime($cache))>$expire) {
+	    unlink($cache);
+	}
+    } else {
+	$dh = opendir(XOOPS_CACHE_PATH);
+	while ($file = readdir($dh)) {
+	    if (preg_match('/^update[0-9a-f]+$/', $file)) {
+		$cache = XOOPS_CACHE_PATH.'/'.$file;
+		if ((time()-filemtime($cache))>$expire) {
+		    unlink($cache);
+		}
+	    }
+	}
+	closedir($dh);
+    }
 }
 
 function file_get_url($url, $allow_xml=false) {
@@ -93,7 +113,7 @@ function strip_csv($item) {
     return preg_replace('/""/', '"', preg_replace('/^"(.*)"$/', '\1', $item, 1));
 }
 
-function strtotime_tz($str) {
+function strtotime_tz($date) {
     $time = strtotime($date);
     if (preg_match('/ ([\+\-]\d\d)(\d\d)$/', $date, $d)) {
 	$time -= ($d[1]."1")*($d[2]*3600+$d[3]*60);

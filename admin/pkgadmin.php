@@ -1,6 +1,6 @@
 <?php
 # package bind administrator
-# $Id: pkgadmin.php,v 1.4 2007/06/21 14:13:38 nobu Exp $
+# $Id: pkgadmin.php,v 1.5 2007/07/09 08:58:10 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -162,6 +162,7 @@ function reg_set_packages() {
 	    if (register_detail($pkg['pname'], $dirname)) $succ++;
 	}
     }
+    if ($succ) clear_get_cache();
     return $succ;
 }
 

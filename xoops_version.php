@@ -1,10 +1,10 @@
 <?php
 # XoopsUpdate - Client Module
-# $Id: xoops_version.php,v 1.17 2007/07/09 05:00:04 nobu Exp $
+# $Id: xoops_version.php,v 1.18 2007/07/09 08:58:10 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.83,
+	    'version' => 0.84,
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 Script Update LLC.",

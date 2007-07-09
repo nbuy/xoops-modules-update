@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.21 2007/07/09 05:00:04 nobu Exp $
+# $Id: package.class.php,v 1.22 2007/07/09 08:58:10 nobu Exp $
 
 // Package class
 // methods:
@@ -822,6 +822,7 @@ function get_packages($pname='all', $local=true) {
     }
     ksort($mlist);
     global $xoopsDB;
+    $llist = array();
     foreach ($mlist as $dir=>$v) {
 	$hash = md5_file(XOOPS_ROOT_PATH."/modules/$dir/xoops_version.php");
 	$res = $xoopsDB->query("SELECT pkgref FROM ".UPDATE_FILE." WHERE hash=".$xoopsDB->quoteString($hash)." AND path LIKE '%/xoops_version.php'");
@@ -832,7 +833,13 @@ function get_packages($pname='all', $local=true) {
 	    if ($data['vcheck']=='') continue; // include base module
 	    $v['pname'] = $data['pname'];
 	    $v['pversion'] = $data['pversion'];
+	    $lists[$dir] = $v;
+	} else {
+	    $llist[$dir] = $v;
 	}
+    }
+    ksort($lists);
+    foreach ($llist as $dir=>$v) {
 	$lists[$dir] = $v;
     }
     closedir($dh);

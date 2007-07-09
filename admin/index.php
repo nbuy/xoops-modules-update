@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.18 2007/07/09 05:00:04 nobu Exp $
+# $Id: index.php,v 1.19 2007/07/09 08:58:10 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -153,7 +153,7 @@ function check_packages() {
 	    $newver = htmlspecialchars($newver);
 	}
 
-	if ($count) $bg .= ' fix';
+	if ($count) $bg = 'fix $bg';
 
 	// check module update
 	$vers = htmlspecialchars($pversion);
