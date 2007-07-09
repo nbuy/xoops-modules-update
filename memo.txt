@@ -25,7 +25,13 @@
 
      pkgid
      ハッシュ値
-     パス名 
+     パス名
+
+   ハッシュ値の代わりに定数を格納することでオプション値を示す。
+
+     options=パス名 (ディレクトリ) は選択可能で有効状態
+     no-options=パス名 (ディレクトリ) は選択可能で無効状態
+     altroot=パス名 (定数名) パス名で示される定数定義に格納される
 
 ■ 現行パッケージ (HEAD)
 
@@ -73,6 +79,25 @@ File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
 生成スクリプト /server/manifesto.php が作成済み。
 ※ cli版の php が必要
    Fedora Core 2 のコマンドライン版 php は cgi 版なので使えない。
+
+生成スクリプト /server/manifesto.pl
+   Perl 版のパッケージ生成スクリプト
+   manifesto 生成およびパッケージアーカイブの作成を行う
+
+特別な意味を持つヘッダー情報
+   X-Optional-Dir ディレクトリ単位で検査対象を選択できる
+                  指定すると詳細設定に選択肢が用意される
+   例:
+     X-Optional-Dir: !install 
+     X-Optional-Dir: modules/contact
+     install ディレクトリは、切り換え可能 (標準で検査対象にしない)
+     modules/contact ディレクトリは、切り換え可能
+
+   X-Alternate-Root 代替ルートの指定
+   例:
+     X-Alternate-Root: XOOPS_TRUST_PATH
+     XOOPS_TRUST_PATH で示されるディレクトリは、定数で指定された
+     パスに置かれることを意味する。
 
 ■ セッションの確認
 

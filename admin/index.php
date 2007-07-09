@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.17 2007/06/21 18:49:19 nobu Exp $
+# $Id: index.php,v 1.18 2007/07/09 05:00:04 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -84,6 +84,7 @@ function check_packages() {
     $update = false;	// find update package?
     $modify = false;
     $errors = array();
+    $module_handler =& xoops_gethandler('module');
     while ($data = $xoopsDB->fetchArray($res)) {
 	$pname = $data['pname'];
 	$dirname = $data['vcheck'];
@@ -102,7 +103,7 @@ function check_packages() {
 	$curver = get_current_version($pname, $dirname);
 	if (empty($data['parent']) ||
 	    !in_array(get_pkg_info($data['parent'], 'pversion'), $curver)) {
-	    $par = import_new_package($pname, $curver[1]);
+	    $par = import_new_package($pname, $curver[1], $dirname);
 	    if (!$par) {
 		$errors[] = "$pname $curver[1]: "._AM_PKG_NOTFOUND;
 	    } else {
@@ -141,7 +142,7 @@ function check_packages() {
 	}
 	$mcount = count_modify_files($data['pkgid']);
 	if ($pversion != $newver) {
-	    $bg = 'up';
+	    $bg .= ' up';
 	    $uppkg = import_new_package($pname, $newver);
 	    if ($uppkg) {
 		$pid = $uppkg->getVar('pkgid');
@@ -152,11 +153,26 @@ function check_packages() {
 	    $newver = htmlspecialchars($newver);
 	}
 
-	if ($count) $bg = 'fix';
+	if ($count) $bg .= ' fix';
 
+	// check module update
+	$vers = htmlspecialchars($pversion);
+	if (!empty($dirname)) {
+	    $module = $module_handler->getByDirname($dirname);
+	    if (is_object($module)) { // installed?
+		$mver = $module->getVar("version")/100;
+		if (!in_array($mver, $curver)) {
+		    $url = get_system_url("ModuleUpdate", $dirname);
+		    $vers = "<a href='$url' title='"._AM_PKG_NEEDUPDATE."'>$vers($mver)</a>";
+		}
+	    } else {
+		$url = get_system_url("ModuleInstall", $dirname);
+		$vers = "<a href='$url' title='"._AM_PKG_NOTINSTALL."'>$vers(-)</span>";
+	    }
+	}
 	echo "<tr class='$bg'><td><a href='index.php?op=opts&pkgid=$id'>".
 	    htmlspecialchars($pname)."</a></td><td>".
-	    htmlspecialchars($pversion)."</td><td>$dirname</td><td>".$newver.
+	    $vers."</td><td>$dirname</td><td>".$newver.
 	    "</td><td>$newdate</td><td align='right'>$count</td><td align='right'>$mcount</td><td>$op</td></tr>\n";
     }
     echo "</table>\n";

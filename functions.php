@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.4 2007/06/20 14:42:52 nobu Exp $
+# $Id: functions.php,v 1.5 2007/07/09 05:00:04 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -89,6 +89,29 @@ function session_auth_server() {
     return $status;
 }
 
+function strip_csv($item) {
+    return preg_replace('/""/', '"', preg_replace('/^"(.*)"$/', '\1', $item, 1));
+}
+
+function strtotime_tz($str) {
+    $time = strtotime($date);
+    if (preg_match('/ ([\+\-]\d\d)(\d\d)$/', $date, $d)) {
+	$time -= ($d[1]."1")*($d[2]*3600+$d[3]*60);
+    }
+    return $time;
+}
+
+function split_csv($line) {
+    $pat = '/^("[^"]*(?:""[^"]*)*"|[^,]*),/';
+    $ret = array();
+    while (preg_match($pat, $line, $d)) {
+	$ret[] = strip_csv($d[1]);
+	$line = preg_replace($pat, '', $line);
+    }
+    $ret[] = strip_csv($line);
+    return $ret;
+}
+
 function mystyle() {
     return '<link rel="stylesheet" type="text/css" media="all" href="'.XOOPS_URL.'/modules/'.basename(dirname(__FILE__)).'/style.css" />'."\n";
 }
@@ -107,5 +130,21 @@ function auth_domain_name($url=XOOPS_URL) {
     $reg = array('/^https?:\/\//i', '/\/+/');
     $rep = array('', '/');
     return preg_replace($reg, $rep, $url);
+}
+
+function get_system_url($type, $arg) {
+    switch ($type) {
+    case 'ModuleUpdate':
+    case 'ModuleInstall':
+	if ( defined( 'XOOPS_CUBE_LEGACY' ) ) { // XOOPS Cube Legacy
+	    $fmt = "/modules/legacy/admin/index.php?action=%s&dirname=%s";
+	} else {				// XOOPS 2.0.x
+	    $type = strtolower(preg_replace("/Module/", '', $type));
+	    $fmt = "/modules/system/admin.php?fct=modulesadmin&op=%s&module=%s";
+	}
+	return XOOPS_URL.sprintf($fmt, $type, $arg);
+    default:
+	return false;
+    }
 }
 ?>

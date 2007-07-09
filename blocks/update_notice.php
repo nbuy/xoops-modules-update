@@ -1,6 +1,6 @@
 <?php
 # XoopsUpdate - notification block
-# $Id: update_notice.php,v 1.2 2006/07/31 13:55:16 nobu Exp $
+# $Id: update_notice.php,v 1.3 2007/07/09 05:00:04 nobu Exp $
 function b_update_notice($options) {
     global $xoopsDB, $xoopsUser;
     $pkg = $xoopsDB->prefix('update_package');
@@ -25,7 +25,7 @@ FROM $pkg a, $pkg b WHERE a.pversion='HEAD' AND a.parent=b.pkgid");
     $config =& $config_handler->getConfigsByCat(0, $module->getVar('mid'));
     $svr = $config['update_server'];
     if (!preg_match('/^\w+:/', $svr)) return null;
-    $url = $svr."/modules/server/list.php?pkg=all";
+    $url = $svr."/modules/server/list.php?pkg=all&ext=1";
     $block = array('admin'=>true, 'dirname'=>$dirname);
     $updates = array();
     if (empty($pkgs)) {
@@ -35,10 +35,10 @@ FROM $pkg a, $pkg b WHERE a.pversion='HEAD' AND a.parent=b.pkgid");
 	if (empty($list)) return null;
 	foreach (split("\n", $list) as $ln) {
 	    if (empty($ln)) continue;
-	    list($pname, $ver, $date, $vcheck, $name) = explode(',', $ln);
+	    list($pname, $ver, $date, $vcheck, $name) = split_csv($ln);
 	    if (isset($pkgs[$pname])) {
 		if ($ver != $pkgs[$pname]['pversion']) {
-		    $time = strtotime($date);
+		    $time = strtotime_tz($date);
 		    $date = formatTimestamp($time, 'm/d h:i');
 		    $updates[] = array('pname'=>$pname, 'pversion'=>$ver,
 				       'time'=>$time, 'date'=>$date,

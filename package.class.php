@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.20 2007/06/23 03:36:30 nobu Exp $
+# $Id: package.class.php,v 1.21 2007/07/09 05:00:04 nobu Exp $
 
 // Package class
 // methods:
@@ -617,6 +617,18 @@ function count_modify_files($pkgid) {
     return $ret;
 }
 
+function pkg_info_csv($ln) {
+    $ln = trim($ln);
+    if (empty($ln)) return false;
+    $F = split_csv(trim($ln));
+    return array('pname'=> $F[0],
+		 'pversion'=> $F[1],
+		 'dtime'=> strtotime_tz($F[2]),
+		 'vcheck'=> $F[3],
+		 'name'=> $F[4],
+		 'delegate'=> empty($F[5])?"":$F[5]);
+}
+
 function get_pkg_info($pkgid, $name='*') {
     global $xoopsDB;
     $res = $xoopsDB->query("SELECT $name FROM ".UPDATE_PKG." WHERE pkgid=$pkgid");
@@ -710,27 +722,16 @@ class PackageList {
     function addServerList($pname='all') {
 	$server = get_update_server();
 	if (empty($server)) return;
-	$url = $server."list.php?pkg=$pname";
+	$url = $server."list.php?pkg=".urlencode($pname)."&ext=1";
 	$list = file_get_url($url);
 	$pkgs =& $this->pkgs;
 	foreach (preg_split('/\n/', $list) as $ln) {
-	    $ln = trim($ln);
-	    if (empty($ln)) continue;
-	    $F = preg_split('/,/', trim($ln), 5);
-	    $dirname = $F[3];
-	    $dstr = $F[2];
-	    $dtime = strtotime($dstr);
-	    if (preg_match('/ ([\+\-])(\d\d)(\d\d)$/', $dstr, $d)) {
-		$zone=($d[1]."1")*($d[2]*3600+$d[3]*60);
-		$dtime -= $zone;
-	    }
-	    $pkg = array('pname'=> $F[0],
-			 'pversion'=> $F[1],
-			 'dtime'=> $dtime,
-			 'vcheck'=> $dirname,
-			 'name'=> $F[4]);
-	    if (isset($pkgs[$dirname])) {
-		$pkgs[$dirname][] = $pkg;
+	    $pkg = pkg_info_csv($ln);
+	    if ($pkg) {
+		$dirname = $pkg['vcheck'];
+		if (isset($pkgs[$dirname])) {
+		    $pkgs[$dirname][] = $pkg;
+		}
 	    }
 	}
     }
@@ -839,7 +840,7 @@ function get_packages($pname='all', $local=true) {
     return $lists;
 }
 
-function import_new_package($pname, $ver) {
+function import_new_package($pname, $ver, $dirname="") {
     global $xoopsModuleConfig, $xoopsDB;
     if (!is_string($ver)) {
 	$ver = preg_replace('/0$/', '', sprintf("%.2f", $ver));
@@ -853,8 +854,31 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
     if (empty($server)) return null;
     $url = $server."manifesto.php?pkg=".urlencode($pname)."&v=".urlencode($ver);
     $content = file_get_url($url);
-    if (empty($content)) echo "None";
-    if (empty($content)) return false;
+    if (preg_match('/^\w+ NOT FOUND/', $content)) {
+	// fallback alternatives
+	$url = $server."list.php?pkg=".urlencode($pname)."&ext=1";
+	$list = file_get_url($url);
+	$find = false;		// package all versions
+	$vfile = XOOPS_ROOT_PATH.($dirname?"modules/$dirname/xoops_version.php":"include/version.php");
+	$hash = md5_file($file);
+	foreach (preg_split('/\n/', $list) as $ln) {
+	    $pkg = pkg_info_csv($ln);
+	    if ($pkg) {
+		$pv = $pkg['pversion'];
+		if ($hash == $pkg['delegate']) {
+		    $find = $pkg;
+		    break;
+		}
+		if ($ver == floatval($pv)) {
+		    if (empty($find) || $find['dtime']>$pkg['dtime']) {
+			$find = $pkg;
+		    }
+		}
+	    }
+	}
+	if (!$find) return false;
+	return import_new_package($pname, $find['pversion']);
+    }
 
     $pkg = new Package();
     if ($pkg->loadStr($content)) $pkg->store();

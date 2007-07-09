@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.10 2006/12/05 03:15:52 nobu Exp $
+# $Id: admin.php,v 1.11 2007/07/09 05:00:04 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
@@ -57,6 +57,8 @@ define('_AM_PKG_DIRNAME', 'フォルダ');
 define('_AM_PKG_SOURCE', 'ソース');
 define('_AM_PKG_REGISTER', '更新情報を登録してください');
 define('_AM_PKG_NOCURRENT', '更新情報名が検出できません');
+define('_AM_PKG_NEEDUPDATE', '更新してください');
+define('_AM_PKG_NOTINSTALL', '未導入です');
 
 define('_AM_REGIST_LIST', '登録済みパッケージ');
 define('_AM_REGIST_SUBMIT', '変更ファイルを登録する');
