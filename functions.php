@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.6 2007/07/09 08:58:10 nobu Exp $
+# $Id: functions.php,v 1.7 2007/07/13 07:44:53 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -116,7 +116,7 @@ function strip_csv($item) {
 function strtotime_tz($date) {
     $time = strtotime($date);
     if (preg_match('/ ([\+\-]\d\d)(\d\d)$/', $date, $d)) {
-	$time -= ($d[1]."1")*($d[2]*3600+$d[3]*60);
+	$time -= $d[1]*3600+$d[2]*60;
     }
     return $time;
 }
