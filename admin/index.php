@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.20 2007/07/16 05:18:30 nobu Exp $
+# $Id: index.php,v 1.21 2007/07/16 11:13:39 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -103,12 +103,13 @@ function check_packages() {
 	}
 	$newver = isset($newpkg['pversion'])?$newpkg['pversion']:'';
 	$curver = get_current_version($pname, $dirname);
+	$modver = $curver[1];	// version string (0: normalize, 1: raw)
 	if (empty($data['parent']) ||
 	    !in_array($data['ppversion'], $curver)) {
 
-	    $par = import_new_package($pname, $curver[1], $pdir);
+	    $par = import_new_package($pname, $modver, $pdir);
 	    if (empty($par)) {
-		$errors[] = "$pname $curver[1]: "._AM_PKG_NOTFOUND;
+		$errors[] = "$pname $modver: "._AM_PKG_NOTFOUND;
 	    } else {
 		$pid = $data['parent'] = $par->getVar('pkgid');
 		$pnm = $data['name'] = $par->getVar('name');
@@ -160,7 +161,7 @@ function check_packages() {
 	if ($count) $bg = 'fix';
 
 	// check module update
-	$vers = htmlspecialchars($pversion);
+	$vers = htmlspecialchars($modver);
 	if (!empty($dirname)) {
 	    $module = $module_handler->getByDirname($dirname);
 	    if (is_object($module)) { // installed?
