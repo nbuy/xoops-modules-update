@@ -1,6 +1,6 @@
 <?php
 # XoopsUpdate - notification block
-# $Id: update_notice.php,v 1.3 2007/07/09 05:00:04 nobu Exp $
+# $Id: update_notice.php,v 1.4 2007/07/16 05:18:30 nobu Exp $
 function b_update_notice($options) {
     global $xoopsDB, $xoopsUser;
     $pkg = $xoopsDB->prefix('update_package');
@@ -31,7 +31,7 @@ FROM $pkg a, $pkg b WHERE a.pversion='HEAD' AND a.parent=b.pkgid");
     if (empty($pkgs)) {
 	$msg = _BL_UPDATE_NOPKGS;
     } else {
-	$list = file_get_url($url);
+	$list = file_get_url($url, 'list');
 	if (empty($list)) return null;
 	foreach (split("\n", $list) as $ln) {
 	    if (empty($ln)) continue;

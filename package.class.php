@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.22 2007/07/09 08:58:10 nobu Exp $
+# $Id: package.class.php,v 1.23 2007/07/16 05:18:30 nobu Exp $
 
 // Package class
 // methods:
@@ -214,9 +214,7 @@ class Package {
 	$pat = $this->regIgnore();
 	foreach ($chk->files as $file => $hash) {
 	    if ($pat && preg_match($pat, $file)) continue;
-	    if ($dest) {
-		$nhash = $dest->getHash($file);
-	    }
+	    $nhash = ($dest)?$dest->getHash($file):'';
 	    if ($stat = $this->checkFile($file, $nhash)) {
 		$updates[$file] = $stat;
 	    }
@@ -317,11 +315,7 @@ class Package {
 	    require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
 	    $url = $server."file.php?pkg=".urlencode($pname).
 		"&v=".urlencode($ver)."&file=".urlencode($path);
-	    $snoopy = new Snoopy;
-	    $snoopy->lastredirectaddr = 1;
-	    $snoopy->timed_out = 5;
-	    if ($snoopy->fetch($url)) return $snoopy->results;
-	    else echo "<div>Error: $url</div>";
+	    return file_get_url($url, "file", false, FILE_CACHE_TIME, true, true);
 	}
 	return null;
     }
@@ -343,6 +337,18 @@ class Package {
 	$rep = array('$\\1$','');
 	return diff_str(preg_replace($tag,$rep,$src), preg_replace($tag,$rep,$dest));
     }
+
+    function getRealPath($path) {
+	if ($this->checkroot && preg_match($this->checkroot, $path, $d)) {
+	    $def = $d[1];
+	    $root = constant($def);
+	    $file = preg_replace("/^".preg_quote($def)."/", $root, $path);
+	} else {
+	    $file = XOOPS_ROOT_PATH."/".$path;
+	}
+	return $file;
+    }
+
 }
 
 class InstallPackage extends Package {
@@ -569,7 +575,7 @@ class InstallPackage extends Package {
     function backupPackage($dstpkg, $dir="backup") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
-	    $file = "$work/$path";
+	    $file = "$work/".$this->getRealPath($path, false);
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    $src = $this->getRealPath($path);
@@ -587,14 +593,7 @@ class InstallPackage extends Package {
 	    $file = $path;
 	}
 	if (!$abs) return $file;
-	if ($this->checkroot && preg_match($this->checkroot, $path, $d)) {
-	    $def = $d[1];
-	    $root = constant($def);
-	    $file = preg_replace("/^".preg_quote($def)."/", $root, $path);
-	} else {
-	    $file = XOOPS_ROOT_PATH."/".$path;
-	}
-	return $file;
+	return parent::getRealPath($file);
     }
 
     function getDiff($path) {
@@ -629,14 +628,6 @@ function pkg_info_csv($ln) {
 		 'delegate'=> empty($F[5])?"":$F[5]);
 }
 
-function get_pkg_info($pkgid, $name='*') {
-    global $xoopsDB;
-    $res = $xoopsDB->query("SELECT $name FROM ".UPDATE_PKG." WHERE pkgid=$pkgid");
-    if ($name == '*') return $xoopsDB->fetchArray($res);
-    list($ret) = $xoopsDB->fetchRow($res);
-    return $ret;
-}
-
 function get_current_version($pname, $vcheck) {
     global $xoopsDB, $xoopsConfig;
     switch ($vcheck) {
@@ -669,13 +660,7 @@ class PackageList {
 	    $xoops[] = 'stdCache';
 	    $xoops[] = 'user';
 	}
-	$res = $xoopsDB->query("SELECT dirname FROM ".$xoopsDB->prefix('modules')." ORDER BY dirname");
-	$pkgs =& $this->pkgs;
 	$pkgs[''] = array();	// XOOPS core slot
-	while (list($dirname) = $xoopsDB->fetchRow($res)) {
-	    if (in_array($dirname, $xoops)) continue;
-	    $pkgs[$dirname]=array();
-	}
     }
 
     function load() {
@@ -723,7 +708,7 @@ class PackageList {
 	$server = get_update_server();
 	if (empty($server)) return;
 	$url = $server."list.php?pkg=".urlencode($pname)."&ext=1";
-	$list = file_get_url($url);
+	$list = file_get_url($url, 'list');
 	$pkgs =& $this->pkgs;
 	foreach (preg_split('/\n/', $list) as $ln) {
 	    $pkg = pkg_info_csv($ln);
@@ -731,6 +716,8 @@ class PackageList {
 		$dirname = $pkg['vcheck'];
 		if (isset($pkgs[$dirname])) {
 		    $pkgs[$dirname][] = $pkg;
+		} else {
+		    $pkgs[$dirname] = array($pkg);
 		}
 	    }
 	}
@@ -823,6 +810,7 @@ function get_packages($pname='all', $local=true) {
     ksort($mlist);
     global $xoopsDB;
     $llist = array();
+    $que = "";
     foreach ($mlist as $dir=>$v) {
 	$hash = md5_file(XOOPS_ROOT_PATH."/modules/$dir/xoops_version.php");
 	$res = $xoopsDB->query("SELECT pkgref FROM ".UPDATE_FILE." WHERE hash=".$xoopsDB->quoteString($hash)." AND path LIKE '%/xoops_version.php'");
@@ -833,14 +821,32 @@ function get_packages($pname='all', $local=true) {
 	    if ($data['vcheck']=='') continue; // include base module
 	    $v['pname'] = $data['pname'];
 	    $v['pversion'] = $data['pversion'];
+	    $v['dtime'] = $data['dtime'];
 	    $lists[$dir] = $v;
 	} else {
-	    $llist[$dir] = $v;
+	    $que .= "$hash $dir\n";
+	    $llist[$hash] = $v;
+	}
+    }
+    if ($que) {
+	$server = get_update_server();
+	if (!empty($server)) {
+	    $url = $server."list2.php";
+	    $list = file_get_url($url, 'list', array('que'=>$que), 0);
+	    foreach (preg_split('/\n/', $list) as $ln) {
+		$pkg = pkg_info_csv($ln);
+		$hash = $pkg['delegate'];
+		if (isset($llist[$hash])) {
+		    $pkg['dirname'] = $dir = $llist[$hash]['vcheck'];
+		    unset($llist[$hash]);
+		    $lists[$dir] = $pkg;
+		}
+	    }
 	}
     }
     ksort($lists);
-    foreach ($llist as $dir=>$v) {
-	$lists[$dir] = $v;
+    foreach ($llist as $v) {
+	$lists[$v['vcheck']] = $v;
     }
     closedir($dh);
 
@@ -860,14 +866,15 @@ $xoopsDB->quoteString($pname)." AND pversion=".$xoopsDB->quoteString($ver));
     $server = get_update_server();
     if (empty($server)) return null;
     $url = $server."manifesto.php?pkg=".urlencode($pname)."&v=".urlencode($ver);
-    $content = file_get_url($url);
+    $content = file_get_url($url, 'mani', false, FILE_CACHE_TIME);
     if (preg_match('/^\w+ NOT FOUND/', $content)) {
 	// fallback alternatives
 	$url = $server."list.php?pkg=".urlencode($pname)."&ext=1";
-	$list = file_get_url($url);
+	$list = file_get_url($url, 'list');
 	$find = false;		// package all versions
-	$vfile = XOOPS_ROOT_PATH.($dirname?"modules/$dirname/xoops_version.php":"include/version.php");
-	$hash = md5_file($file);
+	$vfile = XOOPS_ROOT_PATH.($dirname?"/modules/$dirname/xoops_version.php":"include/version.php");
+	$hash = md5_file($vfile);
+	echo "<div>$pname: $hash ($vfile)</div>";
 	foreach (preg_split('/\n/', $list) as $ln) {
 	    $pkg = pkg_info_csv($ln);
 	    if ($pkg) {

@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.19 2007/07/09 08:58:10 nobu Exp $
+# $Id: index.php,v 1.20 2007/07/16 05:18:30 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -19,7 +19,7 @@ if (isset($_POST['import'])) {
     redirect_result(delete_package(), 'pkgadmin.php');
 } elseif(isset($_POST['accept'])) {
     redirect_result(modify_package(), 'index.php');
-} elseif(isset($_POST['optdir'])) {
+} elseif(isset($_POST['opts_select'])) {
     redirect_result(options_setting(), 'index.php');
 } elseif(isset($_POST['clear'])) {
     $pkgid = intval($_POST['pkgid']);
@@ -41,6 +41,7 @@ echo mystyle();
 include 'mymenu.php';
 switch ($op) {
 default:
+    clear_get_cache(3600*48);
     check_packages();		// checking regsiterd packages
     break;
 
@@ -72,7 +73,7 @@ xoops_cp_footer();
 // bind current installed and HEAD
 function check_packages() {
     global $xoopsDB, $xoopsModuleConfig, $xoopsConfig;
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion='HEAD' ORDER BY vcheck");
+    $res = $xoopsDB->query("SELECT p1.*, p2.vcheck dirname, p2.pversion ppversion FROM ".UPDATE_PKG." p1 LEFT JOIN ".UPDATE_PKG." p2 ON p1.parent=p2.pkgid WHERE p1.pversion='HEAD' ORDER BY p1.vcheck");
     $pkgs = get_packages('all', false);
     echo "<h3>"._AM_CHECK_LIST."</h3>\n";
     echo "<table cellspacing='1' class='outer'>\n";
@@ -87,12 +88,13 @@ function check_packages() {
     $module_handler =& xoops_gethandler('module');
     while ($data = $xoopsDB->fetchArray($res)) {
 	$pname = $data['pname'];
-	$dirname = $data['vcheck'];
+	$dirname = $data['vcheck'];	// real dirname
+	$pdir = empty($data['dirname'])?$dirname:$data['dirname'];
 	$bg = $n++%2?'even':'odd';
 	$id = $data['pkgid'];
-	$newpkg = isset($pkgs[$dirname])?$pkgs[$dirname]:array();
+	$newpkg = isset($pkgs[$pdir])?$pkgs[$pdir]:array();
 	if (empty($newpkg)) {
-	    foreach ($pkgs as $pkg) { // find by name
+	    foreach ($pkgs as $pkg) {	// find by name
 		if ($pname == $pkg['pname']) {
 		    $newpkg = $pkg;
 		    break;
@@ -102,19 +104,21 @@ function check_packages() {
 	$newver = isset($newpkg['pversion'])?$newpkg['pversion']:'';
 	$curver = get_current_version($pname, $dirname);
 	if (empty($data['parent']) ||
-	    !in_array(get_pkg_info($data['parent'], 'pversion'), $curver)) {
-	    $par = import_new_package($pname, $curver[1], $dirname);
-	    if (!$par) {
+	    !in_array($data['ppversion'], $curver)) {
+
+	    $par = import_new_package($pname, $curver[1], $pdir);
+	    if (empty($par)) {
 		$errors[] = "$pname $curver[1]: "._AM_PKG_NOTFOUND;
 	    } else {
 		$pid = $data['parent'] = $par->getVar('pkgid');
 		$pnm = $data['name'] = $par->getVar('name');
 		$ctm = $data['ctime'] = time();
+		$data['ppversion'] = $par->getVar('pversion');
 		$xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET parent=$pid, name=".$xoopsDB->quoteString($pnm).", mtime=0, ctime=$ctm WHERE pkgid=$id");
 	    }
 	}
-	if (!empty($data['parent'])) {
-	    $pversion = get_pkg_info($data['parent'], 'pversion');
+	if (!empty($data['ppversion'])) {
+	    $pversion = $data['ppversion'];
 	    $past = time()-$data['mtime'];
 	    if ($past>$xoopsModuleConfig['cache_time']) {
 		$pkg = new InstallPackage($data);
@@ -142,7 +146,7 @@ function check_packages() {
 	}
 	$mcount = count_modify_files($data['pkgid']);
 	if ($pversion != $newver) {
-	    $bg .= ' up';
+	    $bg = 'up';
 	    $uppkg = import_new_package($pname, $newver);
 	    if ($uppkg) {
 		$pid = $uppkg->getVar('pkgid');
@@ -153,7 +157,7 @@ function check_packages() {
 	    $newver = htmlspecialchars($newver);
 	}
 
-	if ($count) $bg = 'fix $bg';
+	if ($count) $bg = 'fix';
 
 	// check module update
 	$vers = htmlspecialchars($pversion);
@@ -163,11 +167,11 @@ function check_packages() {
 		$mver = $module->getVar("version")/100;
 		if (!in_array($mver, $curver)) {
 		    $url = get_system_url("ModuleUpdate", $dirname);
-		    $vers = "<a href='$url' title='"._AM_PKG_NEEDUPDATE."'>$vers($mver)</a>";
+		    $vers = "<a href='$url' title='"._AM_PKG_NEEDUPDATE."'>$vers ($mver)</a>";
 		}
 	    } else {
 		$url = get_system_url("ModuleInstall", $dirname);
-		$vers = "<a href='$url' title='"._AM_PKG_NOTINSTALL."'>$vers(-)</span>";
+		$vers = "<a href='$url' title='"._AM_PKG_NOTINSTALL."'>$vers (-)</span>";
 	    }
 	}
 	echo "<tr class='$bg'><td><a href='index.php?op=opts&pkgid=$id'>".
@@ -197,7 +201,7 @@ function check_packages() {
     if (file_exists($rollback)) {
 	$ctime = filectime($rollback);
 	$expire = $ctime+$xoopsModuleConfig['cache_time'];
-	if ($expire > time()) unlink($rollback);
+	if ($expire < time()) unlink($rollback);
 	else {
 	    $tm = _AM_UPDATE_TIME.' '.formatTimestamp($ctime, 'm');
 	    $until = _AM_UPDATE_EXPIRE.' '.formatTimestamp($expire, 'H:i');
@@ -392,7 +396,7 @@ function reglist_packages() {
     global $xoopsDB;
     $curpkg = current_pkgs();
 
-    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE parent=0 AND pversion<>'HEAD' ORDER BY pname,ctime");
+    $res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE parent=0 AND pversion<>'HEAD' ORDER BY pname,dtime DESC");
 
     if (!$res || $xoopsDB->getRowsNum($res)==0) return;
 
@@ -403,14 +407,23 @@ function reglist_packages() {
 	"</th><th>"._AM_PKG_VERSION."</th><th>"._AM_PKG_DTIME.
 	"</th><th>"._AM_PKG_SOURCE."</th></tr>\n";
     $n = 0;
+    $prename = '-';
+    $pretime = 0;
     while ($data=$xoopsDB->fetchArray($res)) {
 	$bg = $n++%2?'even':'odd';
 	$pname = $data['pname'];
-	$pversion = $data['pversion'];
 	if (isset($curpkg[$pname])) {
 	    if ($curpkg[$pname]['name'] == $data['name']) $bg = 'up';
 	}
-	$input = "<input type='checkbox' name='pid[".$data['pkgid']."]'/>";
+	$ck = '';
+	if ($pname != $prename || $bg == 'up') {
+	    $prename = $pname;
+	    $pretime = $data['dtime'];
+	} elseif ($pretime > $data['dtime']) {
+	    $ck = ' checked';
+	}
+	$pversion = $data['pversion'];
+	$input = "<input type='checkbox' name='pid[".$data['pkgid']."]'$ck/>";
 	$src = is_dir(XOOPS_UPLOAD_PATH."/update/source/$pname/$pversion")?_YES:_NO;
 	echo "<tr class='$bg'><td>$input</td><td>".
 	    htmlspecialchars($data['name']).
@@ -539,7 +552,7 @@ function options_form() {
     }
     echo "</table>\n";
     echo "<input type='hidden' name='pkgid' value='$id'/>\n";
-    echo "<input type='submit' value='"._SUBMIT."'/>\n";
+    echo "<input type='submit' name='opts_select' value='"._SUBMIT."'/>\n";
     echo "</form>";
 }
 
@@ -548,8 +561,10 @@ function options_setting() {
     $id = intval($_POST['pkgid']);
     $pkg = new InstallPackage($id);
     $dirs = array();
-    foreach ($_POST['optdir'] as $dir) {
-	$dirs[$myts->stripSlashesGPC($dir)]=true;
+    if (isset($_POST['optdir'])) {
+	foreach ($_POST['optdir'] as $dir) {
+	    $dirs[$myts->stripSlashesGPC($dir)]=true;
+	}
     }
     $nchg = 0;
     foreach ($pkg->options as $path=>$v) {

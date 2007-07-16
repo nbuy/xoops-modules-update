@@ -1,6 +1,6 @@
 <?php
 # XoopsUpdate - Client Module
-# $Id: xoops_version.php,v 1.18 2007/07/09 08:58:10 nobu Exp $
+# $Id: xoops_version.php,v 1.19 2007/07/16 05:18:30 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
@@ -23,6 +23,8 @@ $modversion['tables'][] = "update_diff";
 
 // OnInstall - blocks positon maniplate
 $modversion['onInstall'] = "oninstall.php";
+// OnUpdate - upgrade DATABASE 
+$modversion['onUpdate'] = "onupdate.php";
 
 // Admin things
 $modversion['hasAdmin'] = 1;

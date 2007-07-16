@@ -1,11 +1,13 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.7 2007/07/13 07:44:53 nobu Exp $
+# $Id: functions.php,v 1.8 2007/07/16 05:18:30 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
 define('UPDATE_DIFF', $xoopsDB->prefix('update_diff'));
+define('UPDATE_CACHE', $xoopsDB->prefix('update_cache'));
 define('ROLLBACK', XOOPS_UPLOAD_PATH."/update/work/backup-rollback.tar.gz");
+define('FILE_CACHE_TIME', 3600*24*2); // file caching seconds (2days)
 
 function get_update_otp() {
     global $xoopsDB;
@@ -15,54 +17,58 @@ function get_update_otp() {
     return $hash;
 }
 
-function clear_get_cache($url="", $expire=0) {
+function clear_get_cache($expire=0, $prefix="", $url="") {
+    global $xoopsDB;
     if ($url) {
-	$cache = XOOPS_CACHE_PATH.'/update'.md5($url);
-	if (file_exists($cache)&&(time()-filemtime($cache))>$expire) {
-	    unlink($cache);
-	}
+	$cacheid = $xoopsDB->quoteString(md5($url));
+	$tm = time()-$expire;
+	$xoopsDB->queryF("DELETE FROM ".UPDATE_CACHE." WHERE cacheid=$cacheid AND mtime<$tm");
     } else {
-	$dh = opendir(XOOPS_CACHE_PATH);
-	while ($file = readdir($dh)) {
-	    if (preg_match('/^update[0-9a-f]+$/', $file)) {
-		$cache = XOOPS_CACHE_PATH.'/'.$file;
-		if ((time()-filemtime($cache))>$expire) {
-		    unlink($cache);
-		}
-	    }
-	}
-	closedir($dh);
+	$wc = $prefix?'AND cacheid LIKE '.$xoopsDB->quoteString($prefix.':%'):'';
+	$xoopsDB->queryF("DELETE FROM ".UPDATE_CACHE." WHERE mtime<$tm $wc");
     }
 }
 
-function file_get_url($url, $allow_xml=false) {
-    global $xoopsModule, $xoopsModuleConfig;
+function get_myconfig_value($name) {
+    global $xoopsModuleConfig;
     $mydir = basename(dirname(__FILE__));
     if (is_object($xoopsModule) && $xoopsModule->getVar('dirname')==$mydir) {
-	$config =& $xoopsModuleConfig;
+	return $xoopsModuleConfig[$name];
     } else {
 	$module_handler =& xoops_gethandler('module');
 	$module = $module_handler->getByDirname($mydir);
 	$config_handler =& xoops_gethandler('config');
 	$config = $config_handler->getConfigsByCat(0, $module->getVar('mid'));
+	return $config[$name];
     }
+}
+
+function file_get_url($url, $prefix="gen", $post=false, $cache=-1, $allow_xml=false, $touch=false) {
+    global $xoopsModule, $xoopsDB;
+    if ($cache<0) $cache = get_myconfig_value('cache_time');
     require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
     $snoopy = new Snoopy;
     $snoopy->lastredirectaddr = 1;
-    $cache = XOOPS_CACHE_PATH.'/update'.md5($url);
-    if (file_exists($cache) &&
-	(time()-filemtime($cache))<$config['cache_time']) {
-	return file_get_contents($cache);
+    $cacheid = $xoopsDB->quoteString($prefix.':'.md5($url));
+    $res = $xoopsDB->query("SELECT mtime, content FROM ".UPDATE_CACHE." WHERE cacheid=".$cacheid);
+    $now = time();
+    if ($res && $xoopsDB->getRowsNum($res)) {
+	list($mtime, $content) = $xoopsDB->fetchRow($res);
+	if (($now-$mtime) < $cache) {
+	    if ($touch) {
+		$xoopsDB->query("UPDATE ".UPDATE_CACHE." SET mtime=$now WHERE cacheid=".$cacheid);
+	    }
+	    return $content;
+	}
+	$xoopsDB->queryF("DELETE FROM ".UPDATE_CACHE." WHERE cacheid=".$cacheid);
     }
     $snoopy->cookies['UPDATEDOMAIN'] = XOOPS_URL;
     $snoopy->cookies['UPDATEOTP'] = get_update_otp();
-    if ($snoopy->fetch($url)) {
+    if ($post?$snoopy->submit($url, $post):$snoopy->fetch($url)) {
 	$content = $snoopy->results;
 	if ($snoopy->status == 404) return false;
 	if (!$allow_xml && preg_match('/^\s*</', $content)) return false;
-	$fp = fopen($cache, "w");
-	fwrite($fp, $content);
-	fclose($fp);
+	$xoopsDB->queryF("INSERT INTO ".UPDATE_CACHE." (cacheid, mtime, content)VALUES($cacheid,$now,".$xoopsDB->quoteString($content).")");
 	return $content;
     }
     return false;
@@ -71,7 +77,7 @@ function file_get_url($url, $allow_xml=false) {
 function package_expire($pname='') {
     global $xoopsDB;
     if ($pname) $pname = " AND pname='$pname'";
-    $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=0 WHERE pversion='HEAD'".$pname);
+    $xoopsDB->queryF("UPDATE ".UPDATE_PKG." SET mtime=0,parent=0 WHERE pversion='HEAD'".$pname);
 }
 
 function session_auth_server() {
@@ -109,16 +115,16 @@ function session_auth_server() {
     return $status;
 }
 
-function strip_csv($item) {
-    return preg_replace('/""/', '"', preg_replace('/^"(.*)"$/', '\1', $item, 1));
-}
-
 function strtotime_tz($date) {
     $time = strtotime($date);
     if (preg_match('/ ([\+\-]\d\d)(\d\d)$/', $date, $d)) {
 	$time -= $d[1]*3600+$d[2]*60;
     }
     return $time;
+}
+
+function strip_csv($item) {
+    return preg_replace('/""/', '"', preg_replace('/^"(.*)"$/', '\1', $item, 1));
 }
 
 function split_csv($line) {
