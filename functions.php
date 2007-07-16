@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.8 2007/07/16 05:18:30 nobu Exp $
+# $Id: functions.php,v 1.9 2007/07/16 10:58:55 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -19,9 +19,9 @@ function get_update_otp() {
 
 function clear_get_cache($expire=0, $prefix="", $url="") {
     global $xoopsDB;
+    $tm = time()-$expire;
     if ($url) {
 	$cacheid = $xoopsDB->quoteString(md5($url));
-	$tm = time()-$expire;
 	$xoopsDB->queryF("DELETE FROM ".UPDATE_CACHE." WHERE cacheid=$cacheid AND mtime<$tm");
     } else {
 	$wc = $prefix?'AND cacheid LIKE '.$xoopsDB->quoteString($prefix.':%'):'';
