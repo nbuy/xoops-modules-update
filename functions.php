@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.9 2007/07/16 10:58:55 nobu Exp $
+# $Id: functions.php,v 1.10 2007/07/16 11:02:10 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -30,7 +30,7 @@ function clear_get_cache($expire=0, $prefix="", $url="") {
 }
 
 function get_myconfig_value($name) {
-    global $xoopsModuleConfig;
+    global $xoopsModule, $xoopsModuleConfig;
     $mydir = basename(dirname(__FILE__));
     if (is_object($xoopsModule) && $xoopsModule->getVar('dirname')==$mydir) {
 	return $xoopsModuleConfig[$name];
@@ -44,7 +44,7 @@ function get_myconfig_value($name) {
 }
 
 function file_get_url($url, $prefix="gen", $post=false, $cache=-1, $allow_xml=false, $touch=false) {
-    global $xoopsModule, $xoopsDB;
+    global $xoopsDB;
     if ($cache<0) $cache = get_myconfig_value('cache_time');
     require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
     $snoopy = new Snoopy;
