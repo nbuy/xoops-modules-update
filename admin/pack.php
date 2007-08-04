@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - get packed file/do update
-# $Id: pack.php,v 1.5 2007/07/16 05:18:30 nobu Exp $
+# $Id: pack.php,v 1.6 2007/08/04 08:48:36 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -57,6 +57,12 @@ chdir(XOOPS_UPLOAD_PATH."/update/work");
 switch ($op) {
 case 'exec':
     system("tar cfCz 'backup-rollback.tar.gz' '$backupdir' .; rm -rf '$backupdir'");
+    $updatetrust = $updatedir."/XOOPS_TRUST_PATH";
+    if (is_dir($updatetrust)) {	// exists XOOPS_TRUST_PATH
+	$trust = XOOPS_TRUST_PATH;
+	$out = mysystem("copy '$updatetrust' '$trust'");
+	system("rm -rf '$updatetrust'");
+    }
     $base = XOOPS_ROOT_PATH;
     $out = mysystem("copy '$updatedir' '$base'");
     system("rm -rf '$updatedir'");

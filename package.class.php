@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.24 2007/07/16 10:58:55 nobu Exp $
+# $Id: package.class.php,v 1.25 2007/08/04 08:48:36 nobu Exp $
 
 // Package class
 // methods:
@@ -330,8 +330,8 @@ class Package {
 	if (is_binary($path)) return 'file is binary';
 	if (file_exists($file)) $src = file_get_contents($file);
 	else $src = $this->getFile($path);
-	$orig = $target?$target:XOOPS_ROOT_PATH.'/'.$path;
-	
+	$orig = $target?$target:$this->getRealPath($path);
+
 	$dest = file_exists($orig)?file_get_contents($orig):'';
 	$tag = array('/\\$(Id|Date|Author|Revision):[^\\$]*\\$/', '/\r/');
 	$rep = array('$\\1$','');
@@ -356,8 +356,10 @@ class InstallPackage extends Package {
     var $dirname = '';
 
     function InstallPackage($id=0) {
-	if (is_array($id)) $this->vars=$id;
-	elseif ($id) $this->load($id);
+	if (is_array($id)) {
+	    $this->vars=$id;
+	    $this->dirname = $id['vcheck'];
+	} elseif ($id) $this->load($id);
     }
 
     function load($id=0) {
@@ -381,17 +383,24 @@ class InstallPackage extends Package {
 	    $vars['origin'] = $this->getVar('pversion');
 	    $mods = array();
 	    while (list($hash, $path) = $xoopsDB->fetchRow($res)) {
-		if ($hash=='options') {
+		switch ($hash) {
+		case 'options':
 		    $this->options[$path] = true;
-		} elseif ($hash=='no-options') {
+		    break;
+		case 'no-options':
 		    $this->options[$path] = false;
-		} else {
+		    break;
+		case 'altroot':
+		    $this->altroot[] = trim($path);
+		    break;
+		default:
 		    if (isset($files[$path])) {
 			$mods[$path] = $files[$path];
 		    }
 		    $files[$path] = $hash;
 		}
 	    }
+	    $this->init_checkroot();
 	    $pattern = $this->regIgnore();
 	    if ($pattern) {
 		foreach ($files as $path=>$hash) {
@@ -403,7 +412,6 @@ class InstallPackage extends Package {
 	    }
 	    $this->modifies = $mods;
 	    $this->vars = $vars;
-	    if ($this->dirname == $vars['vcheck']) $this->dirname = '';
 	}
 	return $res;
     }

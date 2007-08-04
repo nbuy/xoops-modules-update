@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.21 2007/07/16 11:13:39 nobu Exp $
+# $Id: index.php,v 1.22 2007/08/04 08:48:36 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -526,10 +526,43 @@ function import_package($file) {
     return true;
 }
 
+function show_info_table($pkg) {
+    $ppkg = new Package($pkg->getVar('parent'));
+    $info = array('name'=>_AM_PKG_NAME, 'pname'=>_AM_PKG_PNAME,
+		  'pversion'=>_AM_PKG_CURRENT, 'dtime'=>_AM_PKG_DTIME,
+		  'ctime'=>_AM_PKG_CTIME, 'vcheck'=>_AM_PKG_DIRNAME);
+    $buf = "<table cellspacing='0'>\n";
+    $dirname = $pkg->getVar('vcheck');
+    $module_handler =& xoops_gethandler('module');
+    $module = $dirname?$module_handler->getByDirname($dirname):false;
+    list($mver, $iver) = get_current_version($pkg->getVar('pname'), $pkg->getVar('vcheck'));
+    $n = 0;
+    foreach ($info as $name => $label) {
+	$bg = $n++%2?"even":"odd";
+	$val = $ppkg->getVar($name);
+	if (preg_match('/time$/', $name)) {
+	    $val = formatTimestamp($val);
+	} elseif ($name == 'pversion') {
+	    if ($iver != $val) $val .= " ($iver)";
+	    if (is_object($module)) {
+		$cver = $module->getVar('version')/100;
+		if ($cver != $mver) $val .= " [$cver"._AM_UPDATE_TO."$mver]";
+	    }
+	} elseif ($name == 'vcheck') {
+	    if ($dirname != $val) $val = "$dirname ($val)";
+	}
+	$val = htmlspecialchars($val);
+	$buf .= "<tr class='$bg'><th>$label</th><td>$val</td></tr>\n";
+    }
+    return $buf."</table>\n";
+
+}
+
 function options_form() {
     $id = intval($_GET['pkgid']);
     $pkg = new InstallPackage($id);
     echo "<h2>".sprintf(_AM_OPTS_TITLE, $pkg->getVar('pname'))."</h2>\n";
+    echo show_info_table($pkg);
     $options = $pkg->options;
     if (empty($options)) {
 	echo _AM_OPTS_NONE;

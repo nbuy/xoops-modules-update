@@ -1,6 +1,6 @@
 <?php
 # update module onUpdate proceeding.
-# $Id: onupdate.php,v 1.1 2007/07/16 05:18:30 nobu Exp $
+# $Id: onupdate.php,v 1.2 2007/08/04 08:48:36 nobu Exp $
 
 global $xoopsDB;
 
@@ -23,10 +23,7 @@ if ($xoopsDB->errno()) { // check exists
     $dh = opendir(XOOPS_CACHE_PATH);
     while ($file = readdir($dh)) {
 	if (preg_match('/^update[0-9a-f]+$/', $file)) {
-	    $cache = XOOPS_CACHE_PATH.'/'.$file;
-	    if ((time()-filemtime($cache))>$expire) {
-		unlink($cache);
-	    }
+	    unlink(XOOPS_CACHE_PATH.'/'.$file);
 	}
     }
     closedir($dh);

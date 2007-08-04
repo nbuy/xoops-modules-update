@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.10 2007/07/16 11:02:10 nobu Exp $
+# $Id: functions.php,v 1.11 2007/08/04 08:48:36 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -66,7 +66,7 @@ function file_get_url($url, $prefix="gen", $post=false, $cache=-1, $allow_xml=fa
     $snoopy->cookies['UPDATEOTP'] = get_update_otp();
     if ($post?$snoopy->submit($url, $post):$snoopy->fetch($url)) {
 	$content = $snoopy->results;
-	if ($snoopy->status == 404) return false;
+	if ($snoopy->status == 404 || empty($content)) return false;
 	if (!$allow_xml && preg_match('/^\s*</', $content)) return false;
 	$xoopsDB->queryF("INSERT INTO ".UPDATE_CACHE." (cacheid, mtime, content)VALUES($cacheid,$now,".$xoopsDB->quoteString($content).")");
 	return $content;
