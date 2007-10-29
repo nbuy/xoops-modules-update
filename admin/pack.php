@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - get packed file/do update
-# $Id: pack.php,v 1.6 2007/08/04 08:48:36 nobu Exp $
+# $Id: pack.php,v 1.7 2007/10/29 08:20:33 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -16,6 +16,11 @@ $updatedir = "update-$date";
 $backupdir = "backup-$date";
 ob_start();
 if ($xoopsDB->getRowsNum($res)) {
+    // force clean work files
+    $work = XOOPS_UPLOAD_PATH."/update/work";
+    if (is_dir("$work/$updatedir")) system("rm -rf '$work/$updatedir'");
+    if (is_dir("$work/$backupdir")) system("rm -rf '$work/$backupdir'");
+
     while ($data = $xoopsDB->fetchArray($res)) {
 	$pkg = new InstallPackage($data);
 	$pkg->load();

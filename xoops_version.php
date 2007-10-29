@@ -1,10 +1,10 @@
 <?php
 # XoopsUpdate - Client Module
-# $Id: xoops_version.php,v 1.21 2007/08/04 08:48:36 nobu Exp $
+# $Id: xoops_version.php,v 1.22 2007/10/29 08:20:33 nobu Exp $
 
 $modversion =
       array('name' => _MI_UPDATE_NAME,
-	    'version' => 0.86,
+	    'version' => "0.87",
 	    'description' => _MI_UPDATE_DESC,
 	    'author' => "Nobuhiro YASUTOMI <nobuhiro.yasutomi@nifty.ne.jp>",
 	    'credits' => "(C)2006 Script Update LLC.",
@@ -19,7 +19,7 @@ $modversion['sqlfile']['mysql'] = "sql/mysql.sql";
 $modversion['tables'][] = "update_package";
 $modversion['tables'][] = "update_file";
 $modversion['tables'][] = "update_diff";
-//$modversion['tables'][] = "update_cache"; // not yet use
+$modversion['tables'][] = "update_cache";
 
 // OnInstall - blocks positon maniplate
 $modversion['onInstall'] = "oninstall.php";

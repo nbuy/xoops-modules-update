@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.25 2007/08/04 08:48:36 nobu Exp $
+# $Id: package.class.php,v 1.26 2007/10/29 08:20:33 nobu Exp $
 
 // Package class
 // methods:
@@ -546,6 +546,7 @@ class InstallPackage extends Package {
 
     function updatePackage($dstpkg, $dir="new") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
+	$pname = $this->getVar('pname');
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
 	    $file = "$work/".$this->getRealPath($path, false);
 	    if ($method == 'skip') continue;
@@ -569,7 +570,7 @@ class InstallPackage extends Package {
 		fwrite($fp, $diff);
 		pclose($fp);
 		if (file_exists("$file.orig")) unlink("$file.orig");
-		if (file_exists("$file.rej")) echo "<div>patch failed: $path</div>";
+		if (file_exists("$file.rej")) echo "<div>patch failed: $pname - $path</div>";
 		break;
 	    default:
 		echo "<div>$method: $file<div>\n";
@@ -582,13 +583,16 @@ class InstallPackage extends Package {
 
     function backupPackage($dstpkg, $dir="backup") {
 	$work = XOOPS_UPLOAD_PATH."/update/work/$dir";
+	$pname = $this->getVar('pname');
+	$pat = $this->regIgnore();
 	foreach ($this->checkUpdates($dstpkg) as $path => $method) {
+	    if ($pat && preg_match($pat, $path)) continue;
 	    $file = "$work/".$this->getRealPath($path, false);
 	    if ($method == 'skip') continue;
 	    if (!mkdir_p(dirname($file))) die("can't mkdir with $file");
 	    $src = $this->getRealPath($path);
 	    if (file_exists($src) && !link($src, $file)) {
-		if (!copy($src, $file)) echo "<div>copy fail: $file<div>\n";
+		if (!copy($src, $file)) echo "<div>copy failed: $pname - $src to $file<div>\n";
 	    }
 	}
 	return true;
