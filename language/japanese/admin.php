@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.11 2007/07/09 05:00:04 nobu Exp $
+# $Id: admin.php,v 1.12 2007/11/18 18:04:32 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');

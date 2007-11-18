@@ -69,7 +69,7 @@ ul#changes { text-indent: 1em;}
   <p>Update モジュールを使って、<b>自動更新</b>を行う場合以下の設定を行う。
   この変更は、アップロード権限で更新を実行するために行うものである。</p>
   <blockquote>
-  <div>/etc/sudoers に追加</div>
+  <div><tt>/etc/sudoers</tt> に追加</div>
   <pre>apache  ALL=(<em>username</em>) NOPASSWD: <em>XOOPS_ROOT_PATH</em>/modules/update/fileutil.sh</pre>
   <ul>
     <li><em>username</em> ... XOOPS のファイルをアップロードしているユーザ名</li>
@@ -227,6 +227,6 @@ ul#changes { text-indent: 1em;}
   本モジュールは、スクリプトアップデートで開発・配布されている。</p>
 
 <hr>
-<div>$Id: help.html,v 1.12 2007/10/29 16:36:04 nobu Exp $</div>
+<div>$Id: help.html,v 1.13 2007/11/18 18:04:32 nobu Exp $</div>
 </body>
 </html>
