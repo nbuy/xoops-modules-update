@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.26 2007/10/29 08:20:33 nobu Exp $
+# $Id: package.class.php,v 1.27 2007/11/24 09:49:17 nobu Exp $
 
 // Package class
 // methods:
@@ -244,11 +244,12 @@ class Package {
 	}
 	foreach (array_keys($dirs) as $dir) {
 	    if ($dir == './') $dir = "";
-	    $dh = opendir(XOOPS_ROOT_PATH."/$dir");
+	    
+	    $dh = opendir($this->getRealPath($dir));
 	    while ($fname = readdir($dh)) {
 		if ($fname == '.' || $fname == '..') continue;
 		$path = $dir.$fname;
-		if (is_dir(XOOPS_ROOT_PATH."/$path")) $path .= '/';
+		if (is_dir($this->getRealPath($path))) $path .= '/';
 		if (defined('XOOPS_VERSION')) {
 		    if (preg_match('/^(templates_c|cache|uploads)\/|.~$/', $path)) continue;
 		    if (preg_match('/^modules\/.*\/$/', $path)) {
