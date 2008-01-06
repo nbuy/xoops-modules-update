@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - common use functions
-# $Id: functions.php,v 1.12 2008/01/06 09:14:36 nobu Exp $
+# $Id: functions.php,v 1.13 2008/01/06 12:02:44 nobu Exp $
 
 define('UPDATE_PKG', $xoopsDB->prefix('update_package'));
 define('UPDATE_FILE', $xoopsDB->prefix('update_file'));
@@ -67,8 +67,9 @@ function file_get_url($url, $prefix="gen", $post=false, $cache=-1, $hash=false, 
     if ($post?$snoopy->submit($url, $post):$snoopy->fetch($url)) {
 	$content = $snoopy->results;
 	if ($snoopy->status == 404 || empty($content)) return false;
-	if (empty($hash) && preg_match('/^\s*</', $content)) return false;
-	if (!empty($hash) && md5($content)!=$hash) return false;
+	if (empty($hash)) {
+	    if (preg_match('/^\s*</', $content)) return false;
+	} elseif (md5($content)!=$hash) return false;
 	$xoopsDB->queryF("INSERT INTO ".UPDATE_CACHE." (cacheid, mtime, content)VALUES($cacheid,$now,".$xoopsDB->quoteString($content).")");
 	return $content;
     }
