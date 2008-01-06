@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.27 2007/11/24 09:49:17 nobu Exp $
+# $Id: package.class.php,v 1.28 2008/01/06 09:14:36 nobu Exp $
 
 // Package class
 // methods:
@@ -178,7 +178,8 @@ class Package {
 	}
     }
 
-    function getHash($file) {
+    function getHash($file, $orig=false) {
+	if ($orig && isset($this->modifies[$file])) return $this->modifies[$file];
 	return @$this->files[$file];
     }
 
@@ -310,13 +311,15 @@ class Package {
 	$pname = $this->getVar('pname');
 	$server = get_update_server();
 	$file = XOOPS_ROOT_PATH."/uploads/update/source/$pname/$ver/".$path;
+	$hash = $this->getHash($path, true);
 	if (file_exists($file)) {
-	    return file_get_contents($file);
+	    $body = file_get_contents($file);
+	    if (md5($body)==$hash) return $body;
 	} elseif ($server) {
 	    require_once XOOPS_ROOT_PATH.'/class/snoopy.php';
 	    $url = $server."file.php?pkg=".urlencode($pname).
 		"&v=".urlencode($ver)."&file=".urlencode($path);
-	    return file_get_url($url, "file", false, FILE_CACHE_TIME, true, true);
+	    return file_get_url($url, "file", false, FILE_CACHE_TIME, $hash, true);
 	}
 	return null;
     }

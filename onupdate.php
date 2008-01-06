@@ -1,6 +1,6 @@
 <?php
 # update module onUpdate proceeding.
-# $Id: onupdate.php,v 1.2 2007/08/04 08:48:36 nobu Exp $
+# $Id: onupdate.php,v 1.3 2008/01/06 09:14:36 nobu Exp $
 
 global $xoopsDB;
 
@@ -15,7 +15,7 @@ if ($xoopsDB->errno()) { // check exists
     $xoopsDB->query("CREATE TABLE ".UCACHE." (
   cacheid  varchar(65) NOT NULL,
   mtime    integer NOT NULL default 0,
-  content  text,
+  content  longblob default NULL,
   PRIMARY KEY  (cacheid)
 )");
 
@@ -27,6 +27,14 @@ if ($xoopsDB->errno()) { // check exists
 	}
     }
     closedir($dh);
+}
+
+$res = $xoopsDB->query('SHOW COLUMNS FROM '.UCACHE." LIKE 'content'");
+$row = $xoopsDB->fetchArray($res);
+if ($row['Type'] != 'longblob') {
+    $msgs[] = "Update Database ... fix feilds type";
+    $xoopsDB->query('ALTER TABLE  '.UCACHE.' CHANGE `content` `content` longblob NULL default NULL');
+    $xoopsDB->query('ALTER TABLE  '.$xoopsDB->prefix('update_diff').' CHANGE `diff` `diff` longblob NULL default NULL');
 }
 
 function add_field($table, $field, $type, $after) {
