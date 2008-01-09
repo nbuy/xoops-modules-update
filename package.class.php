@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.28 2008/01/06 09:14:36 nobu Exp $
+# $Id: package.class.php,v 1.29 2008/01/09 08:54:01 nobu Exp $
 
 // Package class
 // methods:
@@ -571,6 +571,16 @@ class InstallPackage extends Package {
 		}
 		file_put_contents($file, $text);
 		$fp = popen("patch -l '$file'", "w");
+
+		// line delimiter follow newer file.
+		$regeol = '/(\r\n|\n|\r)/'; // dos, unix, mac
+		if (preg_match($regeol, $text, $d)) {
+		    $eol = $d[0];
+		    if (preg_match($regeol, $diff, $d) && $d[0] !== $eol) {
+			$diff = str_replace($d[0], $eol, $diff);
+		    }
+		}
+
 		fwrite($fp, $diff);
 		pclose($fp);
 		if (file_exists("$file.orig")) unlink("$file.orig");
@@ -742,7 +752,6 @@ class PackageList {
     function addLocalList() {
 	global $xoopsDB;
 	$res = $xoopsDB->query("SELECT * FROM ".UPDATE_PKG." WHERE pversion<>'HEAD' ORDER BY pname,dtime DESC");
-	echo $xoopsDB->error();
 	$dirname = "/";
 	$pkgs =& $this->pkgs;
 	while ($pkg = $xoopsDB->fetchArray($res)) {
@@ -754,12 +763,12 @@ class PackageList {
 			if (isset($pkg['pkgid'])&&$pre['pname'] == $pkg['pname']) {
 			    $pkgs[$dirname][$k]['pkgid']=$pkg['pkgid'];
 			    if ($pre['dtime']>=$pkg['dtime']) {
-				$found = true;
+				$found = $k;
 				break;
 			    }
 			}
 		    }
-		    if (!$found) $pkgs[$dirname][] = $pkg;
+		    if (!$found) $pkgs[$dirname][$found] = $pkg;
 		} else {
 		    $pkgs[$dirname] = array($pkg);
 		}
@@ -849,13 +858,15 @@ function get_packages($pname='all', $local=true) {
 	if (!empty($server)) {
 	    $url = $server."list2.php";
 	    $list = file_get_url($url, 'list', array('que'=>$que), 0);
-	    foreach (preg_split('/\n/', $list) as $ln) {
-		$pkg = pkg_info_csv($ln);
-		$hash = $pkg['delegate'];
-		if (isset($llist[$hash])) {
-		    $pkg['dirname'] = $dir = $llist[$hash]['vcheck'];
-		    unset($llist[$hash]);
-		    $lists[$dir] = $pkg;
+	    if (empty($list)) {
+		foreach (preg_split('/\n/', $list) as $ln) {
+		    $pkg = pkg_info_csv($ln);
+		    $hash = $pkg['delegate'];
+		    if (isset($llist[$hash])) {
+			$pkg['dirname'] = $dir = $llist[$hash]['vcheck'];
+			unset($llist[$hash]);
+			$lists[$dir] = $pkg;
+		    }
 		}
 	    }
 	}
