@@ -1,4 +1,4 @@
-# $Id: mysql.sql,v 1.4 2008/01/06 09:14:36 nobu Exp $
+# $Id: mysql.sql,v 1.5 2008/01/23 05:58:01 nobu Exp $
 
 CREATE TABLE update_package (
     pkgid	integer NOT NULL PRIMARY KEY auto_increment,
@@ -22,10 +22,11 @@ CREATE TABLE update_file (
 );
 
 CREATE TABLE update_diff (
-    fileref	integer NOT NULL PRIMARY KEY,
+    fileref	integer NOT NULL,
     ctime	integer NOT NULL default 0,
     mtime	integer NOT NULL default 0,
     diff	longblob default NULL,
+    PRIMARY KEY  (fileref)
 );
 
 CREATE TABLE update_cache (
