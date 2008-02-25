@@ -50,12 +50,13 @@
 
 ※ update モジュールに、アップロードして利用が可能
 
-Manifest ::-  Header + Blank-line + Body
-Header ::- [Filed-name + /:\s*/ + value + CRLF [Header...]]
-Blank-line ::- /^$/
-Body ::- Hash-value + /\s+/ + File-path
-Hash-value ::- {sha1-value|md5-value}
-File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
+書式
+    Manifesto ::-  Header + Blank-line + Body
+    Header ::- [Field-name + /:\s*/ + value + CRLF [Header...]]
+    Blank-line ::- /^$/
+    Body ::- Hash-value + /\s+/ + File-path + CRLF [Body...]
+    Hash-value ::- {sha1-value|md5-value}
+    File-path ::- Relative-path               ; XOOPS_ROOT_PATH as root
 
 例:
     From: ScriptUpdate <info@scriptupdate.jp>
