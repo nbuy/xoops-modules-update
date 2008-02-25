@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.30 2008/02/25 15:12:37 nobu Exp $
+# $Id: package.class.php,v 1.31 2008/02/25 15:42:15 nobu Exp $
 
 // Package class
 // methods:
@@ -773,7 +773,7 @@ class PackageList {
 			    }
 			}
 		    }
-		    if ($found) $pkgs[$dirname][$found] = $pkg;
+		    if ($found!==false) $pkgs[$dirname][$found] = $pkg;
 		} else {
 		    $pkgs[$dirname] = array($pkg);
 		}
