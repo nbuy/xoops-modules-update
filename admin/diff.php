@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: diff.php,v 1.4 2006/12/05 03:15:51 nobu Exp $
+# $Id: diff.php,v 1.5 2008/02/25 15:09:56 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -11,6 +11,14 @@ $pkgid = intval($_GET['pkgid']);
 $file = $myts->stripSlashesGPC($_GET['file']);
 $type = isset($_GET['type'])?$_GET['type']:"";
 $pkg = new InstallPackage($pkgid);
+$reverse = false;
+if (empty($pkg->dirname)) {	// future version?
+    $res = $xoopsDB->query("SELECT vcheck FROM ".UPDATE_PKG." WHERE pversion='HEAD' AND pname=".$xoopsDB->quoteString($pkg->getVar('pname')));
+    list($dirname) = $xoopsDB->fetchRow($res);
+    $pkg->dirname = $pkg->getVar('vcheck');
+    $pkg->setVar('vcheck', $dirname);
+    $pkg->reverse = true;
+}
 
 $diff = $pkg->dbDiff($file);
 if ($type == "raw") {
