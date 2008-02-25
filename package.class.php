@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.29 2008/01/09 08:54:01 nobu Exp $
+# $Id: package.class.php,v 1.30 2008/02/25 15:12:37 nobu Exp $
 
 // Package class
 // methods:
@@ -66,6 +66,7 @@ class Package {
     var $options=array();
     var $altroot=array();
     var $checkroot="";
+    var $reverse=false;		// reverse diff
 
     function Package($id=0, $ver='') {
 	if (is_array($id)) $this->vars=$id;
@@ -339,7 +340,11 @@ class Package {
 	$dest = file_exists($orig)?file_get_contents($orig):'';
 	$tag = array('/\\$(Id|Date|Author|Revision):[^\\$]*\\$/', '/\r/');
 	$rep = array('$\\1$','');
-	return diff_str(preg_replace($tag,$rep,$src), preg_replace($tag,$rep,$dest));
+	if ($this->reverse) {
+	    return diff_str(preg_replace($tag,$rep,$dest), preg_replace($tag,$rep,$src));
+	} else {
+	    return diff_str(preg_replace($tag,$rep,$src), preg_replace($tag,$rep,$dest));
+	}
     }
 
     function getRealPath($path) {
@@ -762,13 +767,13 @@ class PackageList {
 		    foreach ($pkgs[$dirname] as $k=>$pre) {
 			if (isset($pkg['pkgid'])&&$pre['pname'] == $pkg['pname']) {
 			    $pkgs[$dirname][$k]['pkgid']=$pkg['pkgid'];
-			    if ($pre['dtime']>=$pkg['dtime']) {
+			    if ($pre['dtime']<$pkg['dtime']) {
 				$found = $k;
 				break;
 			    }
 			}
 		    }
-		    if (!$found) $pkgs[$dirname][$found] = $pkg;
+		    if ($found) $pkgs[$dirname][$found] = $pkg;
 		} else {
 		    $pkgs[$dirname] = array($pkg);
 		}
@@ -778,8 +783,21 @@ class PackageList {
 
     function selectPackage($dirname) {
 	global $xoopsDB;
-	$file = XOOPS_ROOT_PATH."/modules/$dirname/xoops_version.php";
-	if (!file_exists($file)) return false;
+	$paths = array();	// search paths
+	if (defined('XOOPS_TRUST_PATH')) {
+	    $paths[] = XOOPS_TRUST_PATH."/modules/$dirname";
+	    $paths[] = XOOPS_TRUST_PATH."/libs/$dirname";
+	}
+	$paths[] = XOOPS_ROOT_PATH."/modules/$dirname";
+	$file = false;
+	foreach ($paths as $path) {
+	    $path = "$path/xoops_version.php";
+	    if (file_exists($path)) {
+		$file = $path;
+		break;
+	    }
+	}
+	if (empty($file)) return false;
 	$hash=md5_file($file);
 	$res=$xoopsDB->query("SELECT pkgid,pname,pversion,dtime,name
 FROM ".UPDATE_FILE.",".UPDATE_PKG." p WHERE pkgref=pkgid
@@ -933,11 +951,10 @@ function get_update_server() {
     return '';
 }
 
-global $sudouser;
-$sudouser=null;
-
 function mysystem($cmd) {
     global $sudouser, $xoopsModule;
+    static $sudouser=null;
+
     $util = XOOPS_ROOT_PATH.'/modules/'.$xoopsModule->getVar('dirname').'/fileutil.sh';
     if (empty($sudouser)) {
 	if (function_exists('posix_getpwuid')) {
