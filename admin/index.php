@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - Management
-# $Id: index.php,v 1.23 2008/01/09 08:54:01 nobu Exp $
+# $Id: index.php,v 1.24 2008/09/24 00:18:38 nobu Exp $
 
 include '../../../include/cp_header.php';
 include_once '../package.class.php';
@@ -26,6 +26,24 @@ if (isset($_POST['import'])) {
     redirect_result(clear_package($pkgid), 'index.php?op=detail&pkgid='.$pkgid);
 } elseif ($op == 'rollback') {
     redirect_result(rollback_update(), 'index.php');
+}
+
+if( ! empty( $_GET['lib'] ) ) {
+    global $mydirpath;
+    $mydirpath = dirname(dirname(__FILE__));
+    $mydirname = basename($mydirpath);
+    // common libs (eg. altsys)
+    $lib = preg_replace( '/[^a-zA-Z0-9_-]/' , '' , $_GET['lib'] ) ;
+    $page = preg_replace( '/[^a-zA-Z0-9_-]/' , '' , @$_GET['page'] ) ;
+    
+    if( file_exists( XOOPS_TRUST_PATH.'/libs/'.$lib.'/'.$page.'.php' ) ) {
+	include XOOPS_TRUST_PATH.'/libs/'.$lib.'/'.$page.'.php' ;
+	} else if( file_exists( XOOPS_TRUST_PATH.'/libs/'.$lib.'/index.php' ) ) {
+	include XOOPS_TRUST_PATH.'/libs/'.$lib.'/index.php' ;
+    } else {
+	die( 'wrong request' ) ;
+    }
+    exit;
 }
 
 // number of checking packages

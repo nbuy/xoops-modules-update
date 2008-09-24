@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate - define admin menus
-# $Id: menu.php,v 1.4 2006/12/05 03:15:51 nobu Exp $
+# $Id: menu.php,v 1.5 2008/09/24 00:18:38 nobu Exp $
 
 $adminmenu[]=array('title' => _MI_UPDATE_ADCHECK,
 		   'link' => "admin/index.php");
@@ -13,4 +13,13 @@ $adminmenu[]=array('title' => _MI_UPDATE_AUTH,
 $adminmenu[]=array('title' => _MI_UPDATE_ABOUT,
 		   'link' => "admin/help.php");
 
+$adminmenu4altsys[]=
+    array('title' => _MD_A_MYMENU_MYTPLSADMIN,
+	  'link' => 'admin/index.php?mode=admin&lib=altsys&page=mytplsadmin');
+$adminmenu4altsys[]=
+    array('title' => _MD_A_MYMENU_MYBLOCKSADMIN,
+	  'link' => 'admin/index.php?mode=admin&lib=altsys&page=myblocksadmin');
+$adminmenu4altsys[]=
+    array('title' => _MD_A_MYMENU_MYPREFERENCES,
+	  'link' => 'admin/index.php?mode=admin&lib=altsys&page=mypreferences');
 ?>
