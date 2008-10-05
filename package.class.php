@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.31 2008/02/25 15:42:15 nobu Exp $
+# $Id: package.class.php,v 1.32 2008/10/05 05:38:12 nobu Exp $
 
 // Package class
 // methods:
@@ -680,17 +680,6 @@ class PackageList {
     var $pkgs = array();
 
     function PackageList() {
-	global $xoopsDB;
-	$xoops = array('contact', 'mydownloads', 'mylinks', 'newbb', 'news',
-		       'sections', 'system', 'xoopsfaq', 'xoopsheadline',
-		       'xoopsmembers', 'xoopspartners', 'xoopspoll');
-	if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
-	    $xoops[] = 'legacy';
-	    $xoops[] = 'legacyRender';
-	    $xoops[] = 'pm';
-	    $xoops[] = 'stdCache';
-	    $xoops[] = 'user';
-	}
 	$pkgs[''] = array();	// XOOPS core slot
     }
 
