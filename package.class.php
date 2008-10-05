@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.32 2008/10/05 05:38:12 nobu Exp $
+# $Id: package.class.php,v 1.33 2008/10/05 07:42:25 nobu Exp $
 
 // Package class
 // methods:
@@ -688,18 +688,30 @@ class PackageList {
 	$this->addLocalList();
     }
 
+    function getBaseName() {
+	if (empty($this->pkgs[''])) return false;
+	$md5 = md5_file(XOOPS_ROOT_PATH."/include/version.php");
+	foreach ($this->pkgs[''] as $info) {
+	    if ($info['delegate']==$md5) return $info['pname'];
+	}
+	if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
+	    $pname = "cube_legacy";
+	} elseif (preg_match('/^XOOPS 2\\..* JP$/', XOOPS_VERSION)) {
+	    $pname = "XOOPS2-JP";
+	} elseif (preg_match('/^XOOPS 2\\.(\d+)\\..*$/', XOOPS_VERSION, $d)) {
+	    $pname = "XOOPS2".$d[1];
+	} else {
+	    $pname = "XOOPS2";
+	}
+	return $pname;
+    }
+
     function getVar($dirname) {
 	if (isset($this->pkgs[$dirname])) {
 	    $apkg =& $this->pkgs[$dirname];
 	    if (count($apkg)) {
 		if ($dirname) return $apkg[0];
-		if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
-		    $pname = "cube_legacy";
-		} elseif (preg_match('/^XOOPS 2\..* JP$/', XOOPS_VERSION)) {
-		    $pname = "XOOPS2-JP";
-		} else {
-		    $pname = "XOOPS2";
-		}
+		$pname = $this->getBaseName();
 		foreach ($apkg as $pkg) {
 		    if ($pkg['pname']==$pname) return $pkg;
 		}
@@ -805,14 +817,8 @@ function get_packages($pname='all', $local=true) {
     $pkgs->load();
     $lists = array();
     foreach ($pkgs->pkgs as $dir => $pkg) {
-	if (empty($dir)) {	// XXX: need consider select method
-	    if (preg_match('/Cube Legacy/', XOOPS_VERSION)) {
-		$pname = "cube_legacy";
-	    } elseif (preg_match('/^XOOPS 2\..* JP$/', XOOPS_VERSION)) {
-		$pname = "XOOPS2-JP";
-	    } else {
-		$pname = "XOOPS2";
-	    }
+	if (empty($dir)) {
+	    $pname = $pkgs->getBaseName();
 	    foreach ($pkg as $info) {
 		if ($info['pname']==$pname) {
 		    $lists[$dir]=$info;
