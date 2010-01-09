@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.12 2007/11/18 18:04:32 nobu Exp $
+# $Id: admin.php,v 1.13 2010/01/09 07:44:28 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', '検査パッケージ一覧');
@@ -95,6 +95,7 @@ define('_AM_VIEW_SCRIPT', '変更スクリプトのみ表示');
 define('_AM_VIEW_ALL', '全てのファイルを表示');
 define('_AM_DIFF_DIFF', '差分の違い');
 define('_AM_DIFF_RAW', '直接表示');
+define('_AM_DIFF_FETCH_ERROR', 'オリジナルファイルの取得エラー');
 
 define('_AM_FILE_DIFF',  '差分');
 define('_AM_FILE_DBDIFF',  '保存差分');

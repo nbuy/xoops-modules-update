@@ -1,6 +1,6 @@
 <?php
 # ScriptUpdate class defines
-# $Id: package.class.php,v 1.33 2008/10/05 07:42:25 nobu Exp $
+# $Id: package.class.php,v 1.34 2010/01/09 07:44:28 nobu Exp $
 
 // Package class
 // methods:
@@ -253,7 +253,7 @@ class Package {
 		$path = $dir.$fname;
 		if (is_dir($this->getRealPath($path))) $path .= '/';
 		if (defined('XOOPS_VERSION')) {
-		    if (preg_match('/^(templates_c|cache|uploads)\/|.~$/', $path)) continue;
+		    if (preg_match('/^(templates_c|cache|uploads|XOOPS_VAR_PATH)\/|.~$/', $path)) continue;
 		    if (preg_match('/^modules\/.*\/$/', $path)) {
 			$mod = $dir.$fname;
 			if (!isset($this->options[$mod])||$this->options[$mod]) continue;
@@ -335,6 +335,7 @@ class Package {
 	if (is_binary($path)) return 'file is binary';
 	if (file_exists($file)) $src = file_get_contents($file);
 	else $src = $this->getFile($path);
+	if ($src === false) return _AM_DIFF_FETCH_ERROR;
 	$orig = $target?$target:$this->getRealPath($path);
 
 	$dest = file_exists($orig)?file_get_contents($orig):'';

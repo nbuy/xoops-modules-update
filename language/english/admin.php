@@ -1,6 +1,6 @@
 <?php
 # Update Administration language resources
-# $Id: admin.php,v 1.1 2007/11/18 18:04:32 nobu Exp $
+# $Id: admin.php,v 1.2 2010/01/09 07:44:28 nobu Exp $
 
 // update and cheking
 define('_AM_CHECK_LIST', 'List of Check Packages');
@@ -95,6 +95,7 @@ define('_AM_VIEW_SCRIPT', 'View only Changes');
 define('_AM_VIEW_ALL', 'View All');
 define('_AM_DIFF_DIFF', 'difference of Diffs');
 define('_AM_DIFF_RAW', 'Raw diff');
+define('_AM_DIFF_FETCH_ERROR', 'Orignal file fetch error');
 
 define('_AM_FILE_DIFF',  'Diff');
 define('_AM_FILE_DBDIFF',  'Saved Diff');
